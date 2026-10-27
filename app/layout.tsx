@@ -4,6 +4,8 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import Navbar from "@/components/navigation/navbar";
+import { ThemeProvider } from "@/components/ThemeProvider"
+
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -28,8 +30,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={cn("h-full", "antialiased", inter.className, MontserratVF.variable, "font-sans",)}
     >
       <body className="min-h-full flex flex-col">
-        <Navbar />
-        {children}
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+          <Navbar />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
