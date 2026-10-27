@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import Navbar from "@/components/navigation/navbar";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -23,10 +24,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="en" suppressHydrationWarning
       className={cn("h-full", "antialiased", inter.className, MontserratVF.variable, "font-sans",)}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Navbar />
+        {children}
+      </body>
     </html>
   );
 }

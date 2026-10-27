@@ -1,0 +1,9 @@
+{
+    "[javascriptreact]": {
+    "javascript.preferences.quoteStyle": "double"
+},
+"[typescriptreact]": {
+    "typescript.preferences.quoteStyle": "double"
+}
+
+}
