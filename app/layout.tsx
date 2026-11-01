@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import Navbar from "@/components/navigation/navbar";
 import { ThemeProvider } from "@/components/ThemeProvider"
+import { ClerkProvider } from "@clerk/nextjs";
 
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
@@ -25,21 +26,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en" suppressHydrationWarning
-      className={cn("h-full", "antialiased", inter.className, MontserratVF.variable, "font-sans",)}
-    >
-      <body className="min-h-full flex flex-col">
-        <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-        >
-          <Navbar />
-          {children}
-        </ThemeProvider>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body>
+          <ThemeProvider>
+            <Navbar />
+            {children}
+          </ThemeProvider>
+        </body>
+      </html>
+    </ClerkProvider>
+
+    
   );
 }

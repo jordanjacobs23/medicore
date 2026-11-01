@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Practice {
+  id      String @id @default(cuid())
+  clerkOrgId String @unique
+  name    String
+  staff   Staff[]
+  patients Patient[]
+}
+
+enum StaffRole {
+  PRACTICE_MANAGER
+  PRACTITIONER
+  RECEPTIONIST
+  BILLING_CLERK
+  NURSE
+  ASSISTANT
+  VIEWER
+}
+
+model Staff {
+  id        String    @id @default(cuid())
+  clerkId   String    @unique
+  practiceId String
+  email     String
+  firstName String
+  lastName  String
+  role      StaffRole
+  isActive  Boolean   @default(true)
+
+  practice  Practice  @relation(fields: [practiceId], references: [id])
+}
+
+model Patient {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  practiceId String
+  email     String
+  firstName String
+  lastName  String
+
+  practice  Practice @relation(fields: [practiceId], references: [id])
+}
