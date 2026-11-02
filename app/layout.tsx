@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import Navbar from "@/components/navigation/navbar";
 import { ThemeProvider } from "@/components/ThemeProvider"
 import { ClerkProvider } from "@clerk/nextjs";
+import { Suspense } from "react";
 
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
@@ -29,8 +30,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <body>
-          <ThemeProvider>
-            <Navbar />
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <Suspense fallback={null}>
+              <Navbar />
+            </Suspense>
             {children}
           </ThemeProvider>
         </body>
