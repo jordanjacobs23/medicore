@@ -9,25 +9,25 @@ export const getSessionContext = cache(async () => {
     return null;
   }
 
-  const practice = session.orgId
-  ? await prisma.practice.findUnique({
-      where: { clerkOrgId: session.orgId },
-    })
-  : null;
-
-    if (!practice) {
-    return null;
-    }
-
   const staff = await prisma.staff.findFirst({
     where: {
       clerkId: session.userId,
       isActive: true,
-      practiceId: practice.id,
     },
   });
 
   if (staff) {
+    if (session.orgId) {
+      const activePractice = await prisma.practice.findUnique({
+        where: { clerkOrgId: session.orgId },
+        select: { id: true },
+      });
+
+      if (!activePractice || activePractice.id !== staff.practiceId) {
+        return null;
+      }
+    }
+
     return {
       clerkId: session.userId,
       userId: staff.id,

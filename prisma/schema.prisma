@@ -7,11 +7,33 @@ datasource db {
 }
 
 model Practice {
-  id      String @id @default(cuid())
-  clerkOrgId String @unique
-  name    String
-  staff   Staff[]
-  patients Patient[]
+  id         String    @id @default(cuid())
+  clerkOrgId String    @unique
+  name       String
+  patients   Patient[]
+  staff      Staff[]
+}
+
+model Staff {
+  id         String    @id @default(cuid())
+  clerkId    String    @unique
+  practiceId String
+  email      String
+  firstName  String
+  lastName   String
+  role       StaffRole
+  isActive   Boolean   @default(true)
+  practice   Practice  @relation(fields: [practiceId], references: [id])
+}
+
+model Patient {
+  id         String   @id @default(cuid())
+  clerkId    String   @unique
+  practiceId String
+  email      String
+  firstName  String
+  lastName   String
+  practice   Practice @relation(fields: [practiceId], references: [id])
 }
 
 enum StaffRole {
@@ -22,28 +44,4 @@ enum StaffRole {
   NURSE
   ASSISTANT
   VIEWER
-}
-
-model Staff {
-  id        String    @id @default(cuid())
-  clerkId   String    @unique
-  practiceId String
-  email     String
-  firstName String
-  lastName  String
-  role      StaffRole
-  isActive  Boolean   @default(true)
-
-  practice  Practice  @relation(fields: [practiceId], references: [id])
-}
-
-model Patient {
-  id        String   @id @default(cuid())
-  clerkId   String   @unique
-  practiceId String
-  email     String
-  firstName String
-  lastName  String
-
-  practice  Practice @relation(fields: [practiceId], references: [id])
 }
