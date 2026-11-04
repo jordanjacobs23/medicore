@@ -7,33 +7,126 @@ datasource db {
 }
 
 model Practice {
-  id         String    @id @default(cuid())
-  clerkOrgId String    @unique
-  name       String
-  patients   Patient[]
-  staff      Staff[]
+  id           String        @id @default(cuid())
+  clerkOrgId   String        @unique
+  name         String
+  patients     Patient[]
+  staff        Staff[]
+  appointments Appointment[]
+  encounters   Encounter[]
+  invoices     Invoice[]
 }
 
 model Staff {
-  id         String    @id @default(cuid())
-  clerkId    String    @unique
-  practiceId String
-  email      String
-  firstName  String
-  lastName   String
-  role       StaffRole
-  isActive   Boolean   @default(true)
-  practice   Practice  @relation(fields: [practiceId], references: [id])
+  id            String         @id @default(cuid())
+  clerkId       String         @unique
+  practiceId    String
+  email         String
+  firstName     String
+  lastName      String
+  role          StaffRole
+  isActive      Boolean        @default(true)
+  practice      Practice       @relation(fields: [practiceId], references: [id])
+  appointments  Appointment[]
+  encounters    Encounter[]
+  prescriptions Prescription[]
+  observations  Observation[]
+  invoices      Invoice[]
 }
 
 model Patient {
-  id         String   @id @default(cuid())
-  clerkId    String   @unique
-  practiceId String
-  email      String
-  firstName  String
-  lastName   String
-  practice   Practice @relation(fields: [practiceId], references: [id])
+  id            String         @id @default(cuid())
+  clerkId       String         @unique
+  practiceId    String
+  email         String
+  firstName     String
+  lastName      String
+  practice      Practice       @relation(fields: [practiceId], references: [id])
+  appointments  Appointment[]
+  encounters    Encounter[]
+  prescriptions Prescription[]
+  observations  Observation[]
+  invoices      Invoice[]
+}
+
+model Appointment {
+  id             String            @id @default(cuid())
+  practiceId     String
+  patientId      String
+  practitionerId String?
+  scheduledAt    DateTime
+  status         AppointmentStatus @default(BOOKED)
+  reason         String?
+  createdAt      DateTime          @default(now())
+
+  practice     Practice @relation(fields: [practiceId], references: [id])
+  patient      Patient  @relation(fields: [patientId], references: [id])
+  practitioner Staff?   @relation(fields: [practitionerId], references: [id])
+}
+
+model Encounter {
+  id             String          @id @default(cuid())
+  practiceId     String
+  patientId      String
+  practitionerId String
+  startedAt      DateTime        @default(now())
+  endedAt        DateTime?
+  status         EncounterStatus @default(IN_PROGRESS)
+  chiefComplaint String?
+  diagnosis      String?
+  notes          String?
+
+  practice      Practice       @relation(fields: [practiceId], references: [id])
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  practitioner  Staff          @relation(fields: [practitionerId], references: [id])
+  prescriptions Prescription[]
+  observations  Observation[]
+}
+
+model Prescription {
+  id             String             @id @default(cuid())
+  encounterId    String
+  patientId      String
+  practitionerId String
+  medication     String
+  dosage         String
+  instructions   String?
+  status         PrescriptionStatus @default(ACTIVE)
+  createdAt      DateTime           @default(now())
+
+  encounter    Encounter @relation(fields: [encounterId], references: [id])
+  patient      Patient   @relation(fields: [patientId], references: [id])
+  practitioner Staff     @relation(fields: [practitionerId], references: [id])
+}
+
+model Observation {
+  id           String          @id @default(cuid())
+  encounterId  String?
+  patientId    String
+  recordedById String
+  type         ObservationType
+  name         String
+  value        String
+  unit         String?
+  recordedAt   DateTime        @default(now())
+
+  encounter  Encounter? @relation(fields: [encounterId], references: [id])
+  patient    Patient    @relation(fields: [patientId], references: [id])
+  recordedBy Staff      @relation(fields: [recordedById], references: [id])
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  practiceId  String
+  patientId   String
+  createdById String
+  amount      Decimal
+  status      InvoiceStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+
+  practice  Practice @relation(fields: [practiceId], references: [id])
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  createdBy Staff    @relation(fields: [createdById], references: [id])
 }
 
 enum StaffRole {
@@ -44,4 +137,39 @@ enum StaffRole {
   NURSE
   ASSISTANT
   VIEWER
+}
+
+enum AppointmentStatus {
+  BOOKED
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum EncounterStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PrescriptionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ObservationType {
+  VITAL
+  LAB
+  NOTE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+  OVERDUE
 }

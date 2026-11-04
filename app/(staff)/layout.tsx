@@ -1,6 +1,7 @@
 import { forbidden, redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/auth/session";
 import { Suspense } from "react";
+import { StaffSidebar } from "@/components/navigation/staff-sidebar";
 
 async function StaffContent({
   children,
@@ -17,7 +18,30 @@ async function StaffContent({
     forbidden();
   }
 
-  return children;
+  const links = [
+    { href: "/today", label: "Today" },
+    { href: "/calendar", label: "Calendar" },
+    { href: "/patients", label: "Patients" },
+  ];
+
+  if (["PRACTICE_MANAGER", "PRACTITIONER", "NURSE"].includes(session.role)) {
+    links.push({ href: "/clinical", label: "Clinical" });
+  }
+  if (["PRACTICE_MANAGER", "BILLING_CLERK"].includes(session.role)) {
+    links.push({ href: "/billing", label: "Billing" });
+  }
+  if (["PRACTICE_MANAGER", "BILLING_CLERK", "VIEWER"].includes(session.role)) {
+    links.push({ href: "/reports", label: "Reports" });
+  }
+
+  return (
+    <>
+      <StaffSidebar links={links} />
+      <div className="min-h-screen w-auto bg-[#edf2f6] md:ml-20 lg:ml-[270px] dark:bg-[#111a22]">
+        {children}
+      </div>
+    </>
+  );
 }
 
 export default function StaffLayout({

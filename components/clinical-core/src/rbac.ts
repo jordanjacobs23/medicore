@@ -2,6 +2,7 @@ export const PERMISSIONS = {
   PRACTITIONER: [
     "patient:*",
     "encounter:*",
+    "encounter:read",
     "prescription:*",
     "observation:*",
     "vital:*",
@@ -14,6 +15,7 @@ export const PERMISSIONS = {
     "patient:update",
     "appointment:*",
     "invoice:*",
+    "invoice:read",
     "claim:*",
     "report:read",
     "staff:*",
@@ -27,6 +29,7 @@ export const PERMISSIONS = {
   BILLING_CLERK: [
     "patient:read",
     "invoice:*",
+    "invoice:read",
     "claim:*",
     "payment:*",
     "report:read",
