@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { forbidden, redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/auth/session";
 import { Suspense } from "react";
 
@@ -9,8 +9,12 @@ async function StaffContent({
 }) {
   const session = await getSessionContext();
 
-  if (!session || session.userType !== "STAFF") {
+  if (!session) {
     redirect("/sign-in");
+  }
+
+  if (session.userType !== "STAFF") {
+    forbidden();
   }
 
   return children;
