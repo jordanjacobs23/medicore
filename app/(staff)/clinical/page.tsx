@@ -27,6 +27,9 @@ export default async function ClinicalPage() {
         { label: "Pending notes", value: 0 },
       ]}
       actions={[
+        ...(session.role === "PRACTITIONER"
+          ? [{ href: "/clinical/new", label: "New encounter" }]
+          : []),
         { href: "/patients", label: "Find patient" },
         { href: "/today", label: "Open today's work" },
       ]}

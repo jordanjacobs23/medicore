@@ -13,6 +13,7 @@ export const PERMISSIONS = {
     "patient:read",
     "patient:create",
     "patient:update",
+    "encounter:read",
     "appointment:*",
     "invoice:*",
     "invoice:read",
@@ -36,6 +37,7 @@ export const PERMISSIONS = {
   ],
   NURSE: [
     "patient:read",
+    "encounter:read",
     "vital:create",
     "vital:read",
     "observation:create",
@@ -54,6 +56,8 @@ export const PERMISSIONS = {
 
 export type StaffRole = Exclude<keyof typeof PERMISSIONS, "PATIENT">;
 export type Permission =
+  | "encounter:create"
+  | "encounter:update"
   | (typeof PERMISSIONS)[keyof typeof PERMISSIONS][number];
 
 export function hasPermission(
