@@ -51,7 +51,13 @@ export default async function PatientDetailPage({
       : Promise.resolve([]),
     canReadEncounters
       ? prisma.encounter.findMany({
-          where: { patientId: id, practiceId: session.practiceId },
+          where: {
+            patientId: id,
+            practiceId: session.practiceId,
+            ...(session.role === "PRACTITIONER"
+              ? { practitionerId: session.userId }
+              : {}),
+          },
           orderBy: { startedAt: "desc" },
           include: { practitioner: true },
           take: 6,
@@ -59,16 +65,48 @@ export default async function PatientDetailPage({
       : Promise.resolve([]),
     canReadPrescriptions
       ? prisma.prescription.findMany({
-          where: { patientId: id, encounter: { practiceId: session.practiceId } },
+          where: {
+            patientId: id,
+            encounter: {
+              practiceId: session.practiceId,
+              ...(session.role === "PRACTITIONER"
+                ? { practitionerId: session.userId }
+                : {}),
+            },
+          },
           orderBy: { createdAt: "desc" },
           include: { practitioner: true },
           take: 6,
         })
       : Promise.resolve([]),
     Promise.all([
-      prisma.appointment.count({ where: { patientId: id, practiceId: session.practiceId } }),
-      prisma.encounter.count({ where: { patientId: id, practiceId: session.practiceId } }),
-      prisma.prescription.count({ where: { patientId: id, encounter: { practiceId: session.practiceId } } }),
+      canReadAppointments
+        ? prisma.appointment.count({ where: { patientId: id, practiceId: session.practiceId } })
+        : Promise.resolve(0),
+      canReadEncounters
+        ? prisma.encounter.count({
+            where: {
+              patientId: id,
+              practiceId: session.practiceId,
+              ...(session.role === "PRACTITIONER"
+                ? { practitionerId: session.userId }
+                : {}),
+            },
+          })
+        : Promise.resolve(0),
+      canReadPrescriptions
+        ? prisma.prescription.count({
+            where: {
+              patientId: id,
+              encounter: {
+                practiceId: session.practiceId,
+                ...(session.role === "PRACTITIONER"
+                  ? { practitionerId: session.userId }
+                  : {}),
+              },
+            },
+          })
+        : Promise.resolve(0),
     ]),
   ]);
 

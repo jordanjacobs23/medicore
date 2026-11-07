@@ -71,6 +71,14 @@ export async function revokeStaffInvitation(invitationId: string) {
   }
 
   const clerk = await clerkClient();
+  const invitations = await clerk.organizations.getOrganizationInvitationList({
+    organizationId: practice.clerkOrgId,
+    status: ["pending"],
+  });
+  if (!invitations.data.some((invitation) => invitation.id === invitationId)) {
+    throw new Error("Invitation not found in this practice.");
+  }
+
   await clerk.organizations.revokeOrganizationInvitation({
     organizationId: practice.clerkOrgId,
     invitationId,
@@ -152,4 +160,78 @@ export async function assignStaffRole(staffId: string, formData: FormData) {
   });
 
   redirect("/practice/staff?roleUpdated=1");
+}
+
+export async function deactivateStaff(staffId: string) {
+  const session = await requirePermission("staff:*");
+
+  if (staffId === session.userId) {
+    throw new Error("You cannot deactivate your own account.");
+  }
+
+  const staff = await prisma.staff.findFirst({
+    where: { id: staffId, practiceId: session.practiceId },
+    include: { practice: { select: { clerkOrgId: true } } },
+  });
+
+  if (!staff) {
+    throw new Error("Staff member not found.");
+  }
+
+  if (!staff.isActive) {
+    redirect("/practice/staff?deactivated=1");
+  }
+
+  const clerk = await clerkClient();
+  await clerk.organizations.deleteOrganizationMembership({
+    organizationId: staff.practice.clerkOrgId,
+    userId: staff.clerkId,
+  });
+  await prisma.staff.update({
+    where: { id: staff.id },
+    data: { isActive: false },
+  });
+
+  redirect("/practice/staff?deactivated=1");
+}
+
+export async function activateStaff(staffId: string) {
+  const session = await requirePermission("staff:*");
+  const staff = await prisma.staff.findFirst({
+    where: { id: staffId, practiceId: session.practiceId },
+    include: { practice: { select: { clerkOrgId: true } } },
+  });
+
+  if (!staff) {
+    throw new Error("Staff member not found.");
+  }
+
+  if (staff.isActive) {
+    redirect("/practice/staff?activated=1");
+  }
+
+  const clerk = await clerkClient();
+  const memberships = await clerk.organizations.getOrganizationMembershipList({
+    organizationId: staff.practice.clerkOrgId,
+    userId: [staff.clerkId],
+  });
+  if (memberships.data.length === 0) {
+    await clerk.organizations.createOrganizationMembership({
+      organizationId: staff.practice.clerkOrgId,
+      userId: staff.clerkId,
+      role: ROLE_MAP[staff.role],
+    });
+  } else {
+    await clerk.organizations.updateOrganizationMembership({
+      organizationId: staff.practice.clerkOrgId,
+      userId: staff.clerkId,
+      role: ROLE_MAP[staff.role],
+    });
+  }
+  await prisma.staff.update({
+    where: { id: staff.id },
+    data: { isActive: true },
+  });
+
+  redirect("/practice/staff?activated=1");
 }

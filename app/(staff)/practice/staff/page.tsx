@@ -3,8 +3,9 @@ import { Mail, Search, ShieldCheck, Trash2, UserPlus, Users, UserX } from "lucid
 import { clerkClient } from "@clerk/nextjs/server";
 import { requirePermission } from "@/lib/authorization/require-permission";
 import { prisma } from "@/lib/prisma";
-import { assignStaffRole, revokeStaffInvitation } from "./actions";
+import { activateStaff, assignStaffRole, deactivateStaff, revokeStaffInvitation } from "./actions";
 import { StaffRoleSelect } from "./role-select";
+import { StaffStatusToggle } from "./status-toggle";
 
 const roleLabels = {
   PRACTICE_MANAGER: "Practice Manager",
@@ -19,7 +20,7 @@ const roleLabels = {
 export default async function StaffDirectoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; invited?: string; removed?: string; roleUpdated?: string }>;
+  searchParams: Promise<{ q?: string; invited?: string; removed?: string; roleUpdated?: string; activated?: string; deactivated?: string }>;
 }) {
   const session = await requirePermission("staff:*");
   const params = await searchParams;
@@ -60,13 +61,17 @@ export default async function StaffDirectoryPage({
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[1500px] px-4 pb-12 pt-28 sm:px-6 lg:px-8">
-      {(params.invited || params.removed || params.roleUpdated) && (
+      {(params.invited || params.removed || params.roleUpdated || params.activated || params.deactivated) && (
         <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
           {params.invited
             ? "Invitation sent successfully."
             : params.removed
               ? "Staff member removed from the practice."
-              : "Staff role updated successfully."}
+              : params.activated
+                ? "Staff member activated successfully."
+                : params.deactivated
+                  ? "Staff member deactivated successfully."
+                  : "Staff role updated successfully."}
         </div>
       )}
 
@@ -90,6 +95,10 @@ export default async function StaffDirectoryPage({
         <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
           <div className="flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Pending invitations</p><Mail className="size-4 text-[#397f99]" /></div>
           <p className="mt-3 text-2xl font-bold">{invitations.data.length}</p>
+        </article>
+        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Inactive staff</p><UserX className="size-4 text-slate-400" /></div>
+          <p className="mt-3 text-2xl font-bold">{staff.length - activeCount}</p>
         </article>
       </section>
 
@@ -157,10 +166,18 @@ export default async function StaffDirectoryPage({
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${member.isActive ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
-                        {member.isActive ? <ShieldCheck className="size-3.5" /> : <UserX className="size-3.5" />}
-                        {member.isActive ? "Active" : "Removed"}
-                      </span>
+                      {member.id === session.userId ? (
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${member.isActive ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
+                          {member.isActive ? <ShieldCheck className="size-3.5" /> : <UserX className="size-3.5" />}
+                          {member.isActive ? "Active" : "Inactive"}
+                        </span>
+                      ) : (
+                        <StaffStatusToggle
+                          action={member.isActive ? deactivateStaff.bind(null, member.id) : activateStaff.bind(null, member.id)}
+                          isActive={member.isActive}
+                          memberName={`${member.firstName} ${member.lastName}`.trim()}
+                        />
+                      )}
                     </td>
                     <td className="px-8 py-4 text-right">
                       {member.isActive && member.id !== session.userId && (

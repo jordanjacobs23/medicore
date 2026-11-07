@@ -24,7 +24,7 @@ export async function requirePatientSelfAccess(patientId: string) {
   }
 
   if (
-    session.userType === "PATIENT" &&
+    session.userType !== "PATIENT" ||
     session.userId !== patientId
   ) {
     forbidden();

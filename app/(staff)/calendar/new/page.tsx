@@ -16,7 +16,7 @@ export default async function NewAppointmentPage() {
       where: {
         practiceId: session.practiceId,
         isActive: true,
-        role: { in: ["PRACTITIONER", "NURSE", "ASSISTANT"] },
+        role: "PRACTITIONER",
       },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       select: { id: true, firstName: true, lastName: true },

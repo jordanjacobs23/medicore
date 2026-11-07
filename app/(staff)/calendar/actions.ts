@@ -28,7 +28,12 @@ export async function createAppointment(formData: FormData) {
 
   if (practitionerId) {
     const practitioner = await prisma.staff.findFirst({
-      where: { id: practitionerId, practiceId: session.practiceId },
+      where: {
+        id: practitionerId,
+        practiceId: session.practiceId,
+        isActive: true,
+        role: "PRACTITIONER",
+      },
       select: { id: true },
     });
     if (!practitioner) {

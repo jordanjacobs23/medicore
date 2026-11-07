@@ -4,15 +4,29 @@ import { prisma } from "@/lib/prisma";
 
 export default async function ClinicalPage() {
   const session = await requirePermission("encounter:read");
+  const practitionerScope =
+    session.role === "PRACTITIONER" ? { practitionerId: session.userId } : {};
   const [activeEncounters, activePrescriptions, observations] = await Promise.all([
     prisma.encounter.count({
-      where: { practiceId: session.practiceId, status: "IN_PROGRESS" },
+      where: {
+        practiceId: session.practiceId,
+        ...practitionerScope,
+        status: "IN_PROGRESS",
+      },
     }),
     prisma.prescription.count({
-      where: { encounter: { practiceId: session.practiceId }, status: "ACTIVE" },
+      where: {
+        encounter: { practiceId: session.practiceId, ...practitionerScope },
+        status: "ACTIVE",
+      },
     }),
     prisma.observation.count({
-      where: { patient: { practiceId: session.practiceId } },
+      where: {
+        patient: { practiceId: session.practiceId },
+        ...(session.role === "PRACTITIONER"
+          ? { recordedById: session.userId }
+          : {}),
+      },
     }),
   ]);
 

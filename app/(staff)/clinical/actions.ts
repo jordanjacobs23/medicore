@@ -3,7 +3,10 @@
 import { ObservationType, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePermission } from "@/lib/authorization/require-permission";
+import {
+  requirePermission,
+  requirePractitionerPatientAccess,
+} from "@/lib/authorization/require-permission";
 import { prisma } from "@/lib/prisma";
 
 function text(formData: FormData, name: string) {
@@ -28,6 +31,8 @@ export async function createEncounter(formData: FormData) {
     throw new Error("Patient and chief complaint are required.");
   }
 
+  await requirePractitionerPatientAccess(patientId);
+
   const patient = await prisma.patient.findFirst({
     where: { id: patientId, practiceId: session.practiceId },
     select: { id: true },
@@ -41,6 +46,7 @@ export async function createEncounter(formData: FormData) {
       id: session.userId,
       practiceId: session.practiceId,
       isActive: true,
+      role: "PRACTITIONER",
     },
     select: { id: true },
   });
