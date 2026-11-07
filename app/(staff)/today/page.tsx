@@ -11,6 +11,9 @@ export default async function TodayPage() {
   const appointments = await prisma.appointment.count({
     where: {
       practiceId: session.practiceId,
+      ...(session.role === "PRACTITIONER"
+        ? { practitionerId: session.userId }
+        : {}),
       scheduledAt: { gte: today, lt: tomorrow },
     },
   });

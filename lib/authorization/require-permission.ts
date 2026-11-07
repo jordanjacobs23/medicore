@@ -1,5 +1,6 @@
 import { forbidden } from "next/navigation";
 import { getSessionContext } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
 import {
   hasPermission,
   Permission,
@@ -30,6 +31,33 @@ export async function requirePatientSelfAccess(patientId: string) {
     session.userType !== "PATIENT" ||
     session.userId !== patientId
   ) {
+    forbidden();
+  }
+
+  return session;
+}
+
+export async function requirePractitionerPatientAccess(patientId: string) {
+  const session = await requirePermission("patient:read");
+
+  if (session.role !== "PRACTITIONER") {
+    return session;
+  }
+
+  const assignedPatient = await prisma.patient.findFirst({
+    where: {
+      id: patientId,
+      practiceId: session.practiceId,
+      OR: [
+        { appointments: { some: { practitionerId: session.userId } } },
+        { encounters: { some: { practitionerId: session.userId } } },
+        { prescriptions: { some: { practitionerId: session.userId } } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (!assignedPatient) {
     forbidden();
   }
 

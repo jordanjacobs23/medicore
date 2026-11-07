@@ -33,20 +33,24 @@ export default async function CalendarPage({
     String(selectedDate.getMonth() + 1).padStart(2, "0"),
     String(selectedDate.getDate()).padStart(2, "0"),
   ].join("-");
+  const practitionerScope =
+    session.role === "PRACTITIONER"
+      ? { practitionerId: session.userId }
+      : {};
 
   const [todayAppointments, bookedAppointments, arrivedAppointments, appointments] =
     await Promise.all([
     prisma.appointment.count({
-      where: { practiceId: session.practiceId, scheduledAt: { gte: today, lt: tomorrow } },
+      where: { practiceId: session.practiceId, ...practitionerScope, scheduledAt: { gte: today, lt: tomorrow } },
     }),
     prisma.appointment.count({
-      where: { practiceId: session.practiceId, status: "BOOKED" },
+      where: { practiceId: session.practiceId, ...practitionerScope, status: "BOOKED" },
     }),
     prisma.appointment.count({
-      where: { practiceId: session.practiceId, status: "ARRIVED", scheduledAt: { gte: today, lt: tomorrow } },
+      where: { practiceId: session.practiceId, ...practitionerScope, status: "ARRIVED", scheduledAt: { gte: today, lt: tomorrow } },
     }),
     prisma.appointment.findMany({
-      where: { practiceId: session.practiceId, scheduledAt: { gte: selectedDate, lt: selectedTomorrow } },
+      where: { practiceId: session.practiceId, ...practitionerScope, scheduledAt: { gte: selectedDate, lt: selectedTomorrow } },
       include: {
         patient: { select: { firstName: true, lastName: true } },
         practitioner: { select: { firstName: true, lastName: true } },

@@ -1,5 +1,9 @@
-import { requirePermission } from "@/lib/authorization/require-permission";
+import {
+  requirePermission,
+  requirePractitionerPatientAccess,
+} from "@/lib/authorization/require-permission";
 import { prisma } from "@/lib/prisma";
+import { hasPermission } from "@/components/clinical-core/src/rbac";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -26,33 +30,47 @@ export default async function PatientDetailPage({
 }) {
   const session = await requirePermission("patient:read");
   const { id } = await params;
+  await requirePractitionerPatientAccess(id);
+  const canReadAppointments = hasPermission(session.role, "appointment:read");
+  const canReadEncounters = hasPermission(session.role, "encounter:read");
+  const canReadPrescriptions = hasPermission(session.role, "prescription:read");
   const patient = await prisma.patient.findFirst({
     where: { id, practiceId: session.practiceId },
-    include: {
-      appointments: {
-        orderBy: { scheduledAt: "desc" },
-        include: { practitioner: true },
-        take: 8,
-      },
-      encounters: {
-        orderBy: { startedAt: "desc" },
-        include: { practitioner: true },
-        take: 6,
-      },
-      prescriptions: {
-        orderBy: { createdAt: "desc" },
-        include: { practitioner: true },
-        take: 6,
-      },
-      observations: { orderBy: { recordedAt: "desc" }, take: 8 },
-      invoices: { orderBy: { createdAt: "desc" }, take: 6 },
-      _count: {
-        select: { appointments: true, encounters: true, prescriptions: true },
-      },
-    },
   });
 
   if (!patient) notFound();
+
+  const [appointments, encounters, prescriptions, counts] = await Promise.all([
+    canReadAppointments
+      ? prisma.appointment.findMany({
+          where: { patientId: id, practiceId: session.practiceId },
+          orderBy: { scheduledAt: "desc" },
+          include: { practitioner: true },
+          take: 8,
+        })
+      : Promise.resolve([]),
+    canReadEncounters
+      ? prisma.encounter.findMany({
+          where: { patientId: id, practiceId: session.practiceId },
+          orderBy: { startedAt: "desc" },
+          include: { practitioner: true },
+          take: 6,
+        })
+      : Promise.resolve([]),
+    canReadPrescriptions
+      ? prisma.prescription.findMany({
+          where: { patientId: id, encounter: { practiceId: session.practiceId } },
+          orderBy: { createdAt: "desc" },
+          include: { practitioner: true },
+          take: 6,
+        })
+      : Promise.resolve([]),
+    Promise.all([
+      prisma.appointment.count({ where: { patientId: id, practiceId: session.practiceId } }),
+      prisma.encounter.count({ where: { patientId: id, practiceId: session.practiceId } }),
+      prisma.prescription.count({ where: { patientId: id, encounter: { practiceId: session.practiceId } } }),
+    ]),
+  ]);
 
   const initials =
     `${patient.firstName[0] ?? ""}${patient.lastName[0] ?? ""}`.toUpperCase();
@@ -133,9 +151,9 @@ export default async function PatientDetailPage({
 
           <article className="grid grid-cols-3 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
             {[
-              ["Visits", patient._count.appointments],
-              ["Encounters", patient._count.encounters],
-              ["Scripts", patient._count.prescriptions],
+              ["Visits", canReadAppointments ? counts[0] : 0],
+              ["Encounters", canReadEncounters ? counts[1] : 0],
+              ["Scripts", canReadPrescriptions ? counts[2] : 0],
             ].map(([label, value]) => (
               <div
                 key={String(label)}
@@ -163,7 +181,7 @@ export default async function PatientDetailPage({
                 View calendar
               </Link>
             </div>
-            {patient.appointments.map((appointment) => (
+            {appointments.map((appointment) => (
               <div
                 key={appointment.id}
                 className="flex items-center gap-4 border-b border-slate-100 px-5 py-4 last:border-0 dark:border-slate-800/80"
@@ -191,7 +209,7 @@ export default async function PatientDetailPage({
                 <ChevronRight className="size-4 text-slate-300" />
               </div>
             ))}
-            {patient.appointments.length === 0 && (
+            {appointments.length === 0 && (
               <EmptyState icon={CalendarDays} text="No appointments recorded" />
             )}
           </article>
@@ -202,7 +220,7 @@ export default async function PatientDetailPage({
                 <Stethoscope className="size-4 text-[#397f99]" />
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">Clinical encounters</h2>
               </div>
-              {patient.encounters.map((encounter) => (
+              {encounters.map((encounter) => (
                 <div key={encounter.id} className="border-b border-slate-100 px-5 py-4 last:border-0 dark:border-slate-800">
                   <p className="font-semibold text-slate-800 dark:text-slate-200">
                     {encounter.chiefComplaint || "Clinical encounter"}
@@ -217,7 +235,7 @@ export default async function PatientDetailPage({
                   )}
                 </div>
               ))}
-              {patient.encounters.length === 0 && (
+              {encounters.length === 0 && (
                 <EmptyState icon={Stethoscope} text="No encounters recorded" />
               )}
             </article>
@@ -227,7 +245,7 @@ export default async function PatientDetailPage({
                 <Pill className="size-4 text-[#397f99]" />
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">Prescriptions</h2>
               </div>
-              {patient.prescriptions.map((prescription) => (
+              {prescriptions.map((prescription) => (
                 <div key={prescription.id} className="border-b border-slate-100 px-5 py-4 last:border-0 dark:border-slate-800">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -238,7 +256,7 @@ export default async function PatientDetailPage({
                   </div>
                 </div>
               ))}
-              {patient.prescriptions.length === 0 && (
+              {prescriptions.length === 0 && (
                 <EmptyState icon={Pill} text="No prescriptions recorded" />
               )}
             </article>

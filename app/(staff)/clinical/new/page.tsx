@@ -7,7 +7,14 @@ import { createEncounter } from "../actions";
 export default async function NewEncounterPage() {
   const session = await requirePermission("encounter:create");
   const patients = await prisma.patient.findMany({
-    where: { practiceId: session.practiceId },
+    where: {
+      practiceId: session.practiceId,
+      OR: [
+        { appointments: { some: { practitionerId: session.userId } } },
+        { encounters: { some: { practitionerId: session.userId } } },
+        { prescriptions: { some: { practitionerId: session.userId } } },
+      ],
+    },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     select: { id: true, firstName: true, lastName: true },
   });

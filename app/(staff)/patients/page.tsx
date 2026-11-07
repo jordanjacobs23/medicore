@@ -20,19 +20,33 @@ export default async function PatientsPage({
   const query = params.q?.trim() ?? "";
   const currentPage = Math.max(1, Number(params.page) || 1);
   const pageSize = 12;
-  const where = {
-    practiceId: session.practiceId,
-    ...(query
+  const practitionerScope =
+    session.role === "PRACTITIONER"
       ? {
           OR: [
-            { firstName: { contains: query, mode: "insensitive" as const } },
-            { lastName: { contains: query, mode: "insensitive" as const } },
-            { email: { contains: query, mode: "insensitive" as const } },
-            { id: { contains: query, mode: "insensitive" as const } },
+            { appointments: { some: { practitionerId: session.userId } } },
+            { encounters: { some: { practitionerId: session.userId } } },
+            { prescriptions: { some: { practitionerId: session.userId } } },
           ],
         }
-      : {}),
-  };
+      : {};
+  const searchScope = query
+    ? {
+        OR: [
+          { firstName: { contains: query, mode: "insensitive" as const } },
+          { lastName: { contains: query, mode: "insensitive" as const } },
+          { email: { contains: query, mode: "insensitive" as const } },
+          { id: { contains: query, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+  const where =
+    session.role === "PRACTITIONER"
+      ? {
+          practiceId: session.practiceId,
+          AND: [practitionerScope, searchScope],
+        }
+      : { practiceId: session.practiceId, ...searchScope };
 
   const [patients, patientCount, recentAppointments] = await Promise.all([
     prisma.patient.findMany({
