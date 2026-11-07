@@ -16,6 +16,7 @@ model Practice {
   encounters   Encounter[]
   invoices     Invoice[]
   payments     Payment[]
+  claims       Claim[]
 }
 
 model Staff {
@@ -34,6 +35,7 @@ model Staff {
   observations  Observation[]
   invoices      Invoice[]
   payments      Payment[]
+  claims        Claim[]
 }
 
 model Patient {
@@ -50,6 +52,7 @@ model Patient {
   observations  Observation[]
   invoices      Invoice[]
   payments      Payment[]
+  claims        Claim[]
 }
 
 model Appointment {
@@ -125,12 +128,34 @@ model Invoice {
   createdById String
   amount      Decimal
   status      InvoiceStatus @default(DRAFT)
+  dueDate     DateTime?
   createdAt   DateTime      @default(now())
 
   practice  Practice  @relation(fields: [practiceId], references: [id])
   patient   Patient   @relation(fields: [patientId], references: [id])
   createdBy Staff     @relation(fields: [createdById], references: [id])
   payments  Payment[]
+  claims    Claim[]
+}
+
+model Claim {
+  id            String      @id @default(cuid())
+  practiceId    String
+  patientId     String
+  invoiceId     String?
+  submittedById String
+  payer         String
+  claimNumber   String?
+  amount        Decimal
+  status        ClaimStatus @default(DRAFT)
+  submittedAt   DateTime?
+  adjudicatedAt DateTime?
+  createdAt     DateTime    @default(now())
+
+  practice    Practice @relation(fields: [practiceId], references: [id])
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  submittedBy Staff    @relation(fields: [submittedById], references: [id])
 }
 
 model Payment {
@@ -201,4 +226,14 @@ enum PaymentMethod {
   EFT
   BANK_TRANSFER
   OTHER
+}
+
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  PENDING
+  APPROVED
+  DENIED
+  PAID
+  CLOSED
 }

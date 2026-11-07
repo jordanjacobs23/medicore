@@ -59,12 +59,19 @@ export default async function BillingPage({
           <h1 className="font-montserrat text-3xl font-bold text-slate-950 dark:text-white sm:text-4xl">Billing</h1>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Manage invoices, payments, and patient balances.</p>
         </div>
-        {canManage && (
-          <Link href="/billing/new" className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#397f99] px-4 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(57,127,153,0.22)]">
-            <Plus className="size-4" />
-            Create invoice
-          </Link>
-        )}
+        <div className="flex flex-wrap gap-3">
+          {canManage && (
+            <>
+              <Link href="/billing/claims" className="inline-flex h-11 items-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">
+                Claims
+              </Link>
+              <Link href="/billing/new" className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#397f99] px-4 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(57,127,153,0.22)]">
+                <Plus className="size-4" />
+                Create invoice
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
       <section className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-3">

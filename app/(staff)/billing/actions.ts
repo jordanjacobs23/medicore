@@ -1,6 +1,6 @@
 "use server";
 
-import { InvoiceStatus, PaymentMethod, Prisma } from "@prisma/client";
+import { ClaimStatus, InvoiceStatus, PaymentMethod, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/authorization/require-permission";
@@ -46,6 +46,7 @@ export async function createInvoice(formData: FormData) {
   const patientId = text(formData, "patientId");
   const amountValue = text(formData, "amount");
   const status = parseStatus(text(formData, "status"));
+  const dueDateValue = text(formData, "dueDate");
 
   if (!patientId || !amountValue) {
     throw new Error("Patient and invoice amount are required.");
@@ -68,6 +69,7 @@ export async function createInvoice(formData: FormData) {
       createdById: creator.id,
       amount,
       status,
+      dueDate: dueDateValue ? new Date(`${dueDateValue}T23:59:59`) : null,
     },
   });
 
@@ -81,6 +83,7 @@ export async function updateInvoice(formData: FormData) {
   const patientId = text(formData, "patientId");
   const amountValue = text(formData, "amount");
   const status = parseStatus(text(formData, "status"));
+  const dueDateValue = text(formData, "dueDate");
 
   if (!invoiceId || !patientId || !amountValue) {
     throw new Error("Invoice, patient, and amount are required.");
@@ -98,12 +101,87 @@ export async function updateInvoice(formData: FormData) {
   const amount = parseAmount(amountValue);
   await prisma.invoice.update({
     where: { id: invoice.id },
-    data: { patientId: patient.id, amount, status },
+    data: {
+      patientId: patient.id,
+      amount,
+      status,
+      dueDate: dueDateValue ? new Date(`${dueDateValue}T23:59:59`) : null,
+    },
   });
 
   revalidatePath("/billing");
   revalidatePath(`/billing/${invoice.id}/edit`);
   redirect("/billing");
+}
+
+export async function createClaim(formData: FormData) {
+  const session = await requirePermission("claim:*");
+  const patientId = text(formData, "patientId");
+  const invoiceId = text(formData, "invoiceId");
+  const payer = text(formData, "payer");
+  const claimNumber = text(formData, "claimNumber");
+  const amountValue = text(formData, "amount");
+  if (!patientId || !payer || !amountValue) {
+    throw new Error("Patient, payer, and claim amount are required.");
+  }
+
+  const patient = await resolvePatient(patientId, session.practiceId);
+  const amount = parseAmount(amountValue);
+  if (invoiceId) {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, practiceId: session.practiceId, patientId: patient.id },
+      select: { id: true },
+    });
+    if (!invoice) throw new Error("Invoice not found for this patient.");
+  }
+  const submitter = await prisma.staff.findFirst({
+    where: { id: session.userId, practiceId: session.practiceId, isActive: true },
+    select: { id: true },
+  });
+  if (!submitter) throw new Error("The current staff member is not active in this practice.");
+
+  await prisma.claim.create({
+    data: {
+      practiceId: session.practiceId,
+      patientId: patient.id,
+      invoiceId: invoiceId || null,
+      submittedById: submitter.id,
+      payer,
+      claimNumber: claimNumber || null,
+      amount,
+    },
+  });
+  revalidatePath("/billing/claims");
+  redirect("/billing/claims");
+}
+
+export async function updateClaimStatus(formData: FormData) {
+  const session = await requirePermission("claim:*");
+  const claimId = text(formData, "claimId");
+  const statusValue = text(formData, "status");
+  if (!Object.values(ClaimStatus).includes(statusValue as ClaimStatus)) {
+    throw new Error("A valid claim status is required.");
+  }
+  const claim = await prisma.claim.findFirst({
+    where: { id: claimId, practiceId: session.practiceId },
+    select: { id: true },
+  });
+  if (!claim) throw new Error("Claim not found in this practice.");
+  const status = statusValue as ClaimStatus;
+
+  await prisma.claim.update({
+    where: { id: claim.id },
+    data: {
+      status,
+      submittedAt: ["SUBMITTED", "PENDING", "APPROVED", "DENIED", "PAID", "CLOSED"].includes(status)
+        ? new Date()
+        : undefined,
+      adjudicatedAt: ["APPROVED", "DENIED", "PAID", "CLOSED"].includes(status)
+        ? new Date()
+        : undefined,
+    },
+  });
+  revalidatePath("/billing/claims");
 }
 
 export async function recordPayment(formData: FormData) {

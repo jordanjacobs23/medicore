@@ -11,7 +11,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
   const [invoice, patients] = await Promise.all([
     prisma.invoice.findFirst({
       where: { id, practiceId: session.practiceId },
-      select: { id: true, patientId: true, amount: true, status: true },
+      select: { id: true, patientId: true, amount: true, status: true, dueDate: true },
     }),
     prisma.patient.findMany({
       where: { practiceId: session.practiceId },
@@ -89,6 +89,16 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
               </select>
             </label>
           </div>
+
+          <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Due date
+            <input
+              type="date"
+              name="dueDate"
+              defaultValue={invoice.dueDate ? invoice.dueDate.toISOString().slice(0, 10) : ""}
+              className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-normal outline-none focus:border-[#397f99] dark:border-slate-700 dark:bg-slate-950"
+            />
+          </label>
 
           <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-800">
             <Link href="/billing" className="inline-flex h-10 items-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">

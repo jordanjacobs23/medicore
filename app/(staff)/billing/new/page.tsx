@@ -79,6 +79,14 @@ export default async function NewInvoicePage() {
                 <option value="VOID">Void</option>
               </select>
             </label>
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Due date
+              <input
+                type="date"
+                name="dueDate"
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-normal outline-none focus:border-[#397f99] dark:border-slate-700 dark:bg-slate-950"
+              />
+            </label>
           </div>
 
           <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-800">
