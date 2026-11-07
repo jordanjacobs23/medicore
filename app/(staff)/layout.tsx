@@ -33,6 +33,9 @@ async function StaffContent({
   if (["PRACTICE_MANAGER", "BILLING_CLERK", "VIEWER"].includes(session.role)) {
     links.push({ href: "/reports", label: "Reports" });
   }
+  if (session.role === "PRACTICE_MANAGER") {
+    links.push({ href: "/practice/staff", label: "Practice" });
+  }
 
   return (
     <>

@@ -55,7 +55,7 @@ export default async function BillingPage({
     <main className="mx-auto min-h-screen w-full max-w-[1500px] px-4 pb-12 pt-28 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-[#397f99]">Patient accounts</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-[#397f99]">Patient Accounts</p>
           <h1 className="font-montserrat text-3xl font-bold text-slate-950 dark:text-white sm:text-4xl">Billing</h1>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Manage invoices, payments, and patient balances.</p>
         </div>

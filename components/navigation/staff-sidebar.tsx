@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ClipboardPlus,
   CreditCard,
+  Building2,
   LayoutDashboard,
   Stethoscope,
   Users,
@@ -24,6 +25,7 @@ const icons = {
   "/clinical": Stethoscope,
   "/billing": CreditCard,
   "/reports": BarChart3,
+  "/practice/staff": Building2,
   "/patients/new": ClipboardPlus,
 };
 
