@@ -3,13 +3,14 @@ import { Mail, Search, ShieldCheck, Trash2, UserPlus, Users, UserX } from "lucid
 import { clerkClient } from "@clerk/nextjs/server";
 import { requirePermission } from "@/lib/authorization/require-permission";
 import { prisma } from "@/lib/prisma";
-import { revokeStaffInvitation } from "./actions";
+import { assignStaffRole, revokeStaffInvitation } from "./actions";
+import { StaffRoleSelect } from "./role-select";
 
 const roleLabels = {
-  PRACTICE_MANAGER: "Practice manager",
+  PRACTICE_MANAGER: "Practice Manager",
   PRACTITIONER: "Practitioner",
   RECEPTIONIST: "Receptionist",
-  BILLING_CLERK: "Billing clerk",
+  BILLING_CLERK: "Billing Clerk",
   NURSE: "Nurse",
   ASSISTANT: "Assistant",
   VIEWER: "Viewer",
@@ -18,7 +19,7 @@ const roleLabels = {
 export default async function StaffDirectoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; invited?: string; removed?: string }>;
+  searchParams: Promise<{ q?: string; invited?: string; removed?: string; roleUpdated?: string }>;
 }) {
   const session = await requirePermission("staff:*");
   const params = await searchParams;
@@ -59,21 +60,25 @@ export default async function StaffDirectoryPage({
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[1500px] px-4 pb-12 pt-28 sm:px-6 lg:px-8">
-      {(params.invited || params.removed) && (
+      {(params.invited || params.removed || params.roleUpdated) && (
         <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-          {params.invited ? "Invitation sent successfully." : "Staff member removed from the practice."}
+          {params.invited
+            ? "Invitation sent successfully."
+            : params.removed
+              ? "Staff member removed from the practice."
+              : "Staff role updated successfully."}
         </div>
       )}
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-[#397f99]">Practice management</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-[#397f99]">Practice Management</p>
           <h1 className="font-montserrat text-3xl font-bold text-slate-950 dark:text-white sm:text-4xl">Staff directory</h1>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{practice.name}</p>
         </div>
         <Link href="/practice/staff/invite" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#397f99] px-4 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(57,127,153,0.22)]">
           <UserPlus className="size-4" />
-          Invite staff
+          Invite Staff
         </Link>
       </div>
 
@@ -125,7 +130,7 @@ export default async function StaffDirectoryPage({
                 <th className="px-5 py-3.5">Staff member</th>
                 <th className="px-4 py-3.5">Role</th>
                 <th className="px-4 py-3.5">Status</th>
-                <th className="px-5 py-3.5 text-right">Action</th>
+                <th className="px-7 py-3.5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -139,14 +144,25 @@ export default async function StaffDirectoryPage({
                         <div><p className="font-semibold text-slate-950 dark:text-white">{member.firstName || member.lastName ? `${member.firstName} ${member.lastName}`.trim() : "Staff member"}</p><p className="mt-0.5 text-xs text-slate-500">{member.email}</p></div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-slate-700 dark:text-slate-300">{roleLabels[member.role]}</td>
+                    <td className="px-4 py-4">
+                      {member.isActive ? (
+                        <StaffRoleSelect
+                          action={assignStaffRole.bind(null, member.id)}
+                          currentRole={member.role}
+                          memberName={`${member.firstName} ${member.lastName}`.trim()}
+                          roles={Object.entries(roleLabels)}
+                        />
+                      ) : (
+                        <span className="text-slate-500">{roleLabels[member.role]}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${member.isActive ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
                         {member.isActive ? <ShieldCheck className="size-3.5" /> : <UserX className="size-3.5" />}
                         {member.isActive ? "Active" : "Removed"}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-right">
+                    <td className="px-8 py-4 text-right">
                       {member.isActive && member.id !== session.userId && (
                         <Link
                           href={`/practice/staff/${member.id}/remove`}

@@ -108,3 +108,48 @@ export async function removeStaff(staffId: string) {
 
   redirect("/practice/staff?removed=1");
 }
+
+export async function assignStaffRole(staffId: string, formData: FormData) {
+  const session = await requirePermission("staff:*");
+  const role = String(formData.get("role") ?? "") as keyof typeof ROLE_MAP;
+
+  if (!ROLE_MAP[role]) {
+    throw new Error("A valid staff role is required.");
+  }
+
+  const staff = await prisma.staff.findFirst({
+    where: { id: staffId, practiceId: session.practiceId, isActive: true },
+    include: { practice: { select: { clerkOrgId: true } } },
+  });
+
+  if (!staff) {
+    throw new Error("Staff member not found.");
+  }
+
+  if (staff.role === "PRACTICE_MANAGER" && role !== "PRACTICE_MANAGER") {
+    const managerCount = await prisma.staff.count({
+      where: {
+        practiceId: session.practiceId,
+        isActive: true,
+        role: "PRACTICE_MANAGER",
+      },
+    });
+
+    if (managerCount <= 1) {
+      throw new Error("Assign another practice manager before changing this member's role.");
+    }
+  }
+
+  const clerk = await clerkClient();
+  await clerk.organizations.updateOrganizationMembership({
+    organizationId: staff.practice.clerkOrgId,
+    userId: staff.clerkId,
+    role: ROLE_MAP[role],
+  });
+  await prisma.staff.update({
+    where: { id: staff.id },
+    data: { role },
+  });
+
+  redirect("/practice/staff?roleUpdated=1");
+}

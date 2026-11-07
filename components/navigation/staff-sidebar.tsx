@@ -9,6 +9,7 @@ import {
   CreditCard,
   Building2,
   LayoutDashboard,
+  Settings,
   Stethoscope,
   Users,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const icons = {
   "/billing": CreditCard,
   "/reports": BarChart3,
   "/practice/staff": Building2,
+  "/practice/settings": Settings,
   "/patients/new": ClipboardPlus,
 };
 
