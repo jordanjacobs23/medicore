@@ -42,6 +42,7 @@ export default async function BillingPage({
       include: {
         patient: { select: { firstName: true, lastName: true } },
         createdBy: { select: { firstName: true, lastName: true } },
+        payments: { select: { amount: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -117,10 +118,19 @@ export default async function BillingPage({
                   <tr key={invoice.id} className="hover:bg-[#397f99]/[0.035] dark:hover:bg-[#397f99]/10">
                     <td className="px-5 py-4 font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">{invoice.id.slice(-8).toUpperCase()}</td>
                     <td className="px-4 py-4 font-semibold text-slate-950 dark:text-white">{invoice.patient.firstName} {invoice.patient.lastName}</td>
-                    <td className="px-4 py-4 font-semibold">${invoice.amount.toFixed(2)}</td>
+                    <td className="px-4 py-4 font-semibold">R{invoice.amount.toFixed(2)}</td>
                     <td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[invoice.status]}`}>{invoice.status}</span></td>
                     <td className="px-4 py-4 text-slate-500">{invoice.createdAt.toLocaleDateString()}</td>
-                    {canManage && <td className="px-5 py-4 text-right"><Link href={`/billing/${invoice.id}/edit`} className="font-semibold text-[#397f99] hover:underline">Edit</Link></td>}
+                    {canManage && (
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex justify-end gap-3">
+                          {!["DRAFT", "VOID", "PAID"].includes(invoice.status) && (
+                            <Link href={`/billing/${invoice.id}/payments/new`} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">Pay</Link>
+                          )}
+                          <Link href={`/billing/${invoice.id}/edit`} className="font-semibold text-[#397f99] hover:underline">Edit</Link>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

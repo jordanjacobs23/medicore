@@ -15,6 +15,7 @@ model Practice {
   appointments Appointment[]
   encounters   Encounter[]
   invoices     Invoice[]
+  payments     Payment[]
 }
 
 model Staff {
@@ -32,6 +33,7 @@ model Staff {
   prescriptions Prescription[]
   observations  Observation[]
   invoices      Invoice[]
+  payments      Payment[]
 }
 
 model Patient {
@@ -47,6 +49,7 @@ model Patient {
   prescriptions Prescription[]
   observations  Observation[]
   invoices      Invoice[]
+  payments      Payment[]
 }
 
 model Appointment {
@@ -124,9 +127,27 @@ model Invoice {
   status      InvoiceStatus @default(DRAFT)
   createdAt   DateTime      @default(now())
 
-  practice  Practice @relation(fields: [practiceId], references: [id])
-  patient   Patient  @relation(fields: [patientId], references: [id])
-  createdBy Staff    @relation(fields: [createdById], references: [id])
+  practice  Practice  @relation(fields: [practiceId], references: [id])
+  patient   Patient   @relation(fields: [patientId], references: [id])
+  createdBy Staff     @relation(fields: [createdById], references: [id])
+  payments  Payment[]
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  practiceId   String
+  patientId    String
+  invoiceId    String
+  recordedById String
+  amount       Decimal
+  method       PaymentMethod
+  reference    String?
+  recordedAt   DateTime      @default(now())
+
+  practice   Practice @relation(fields: [practiceId], references: [id])
+  patient    Patient  @relation(fields: [patientId], references: [id])
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  recordedBy Staff    @relation(fields: [recordedById], references: [id])
 }
 
 enum StaffRole {
@@ -172,4 +193,12 @@ enum InvoiceStatus {
   PAID
   VOID
   OVERDUE
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  EFT
+  BANK_TRANSFER
+  OTHER
 }

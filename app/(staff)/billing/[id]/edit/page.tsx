@@ -25,7 +25,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     <main className="mx-auto min-h-screen w-full max-w-3xl px-4 pb-12 pt-28 sm:px-6">
       <Link href="/billing" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-[#397f99]">
         <ArrowLeft className="size-4" />
-        Back to billing
+        Back to Billing
       </Link>
 
       <section className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-950">
