@@ -8,10 +8,21 @@ export default async function PatientMessagesPage() {
   const session = await getSessionContext();
   if (!session || session.userType !== "PATIENT") return null;
 
-  const messages = await prisma.portalMessage.findMany({
-    where: { practiceId: session.practiceId, patientId: session.userId },
-    orderBy: { createdAt: "asc" },
-  });
+  const [messages] = await Promise.all([
+    prisma.portalMessage.findMany({
+      where: { practiceId: session.practiceId, patientId: session.userId },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.portalMessage.updateMany({
+      where: {
+        practiceId: session.practiceId,
+        patientId: session.userId,
+        senderType: "PRACTICE",
+        readAt: null,
+      },
+      data: { readAt: new Date() },
+    }),
+  ]);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-4xl px-4 pb-12 pt-10 sm:px-6">

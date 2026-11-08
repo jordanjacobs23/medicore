@@ -12,11 +12,13 @@ import {
   Settings,
   Stethoscope,
   Users,
+  MessageSquare,
 } from "lucide-react";
 
 export type StaffSidebarLink = {
   href: string;
   label: string;
+  badgeCount?: number;
 };
 
 const icons = {
@@ -29,6 +31,7 @@ const icons = {
   "/practice/staff": Building2,
   "/practice/settings": Settings,
   "/patients/new": ClipboardPlus,
+  "/messages": MessageSquare,
 };
 
 export function StaffSidebar({ links }: { links: StaffSidebarLink[] }) {
@@ -49,7 +52,7 @@ export function StaffSidebar({ links }: { links: StaffSidebarLink[] }) {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex min-h-12 items-center justify-center gap-4 rounded-lg px-3 text-[17px] font-semibold transition-colors lg:justify-start lg:px-4 ${
+                className={`relative flex min-h-12 items-center justify-center gap-4 rounded-lg px-3 text-[17px] font-semibold transition-colors lg:justify-start lg:px-4 ${
                   active
                     ? "bg-[#315a6b] text-white shadow-sm"
                     : "text-slate-300 hover:bg-white/7 hover:text-white"
@@ -57,6 +60,11 @@ export function StaffSidebar({ links }: { links: StaffSidebarLink[] }) {
               >
                 <Icon className="size-5 shrink-0" strokeWidth={2} />
                 <span className="hidden lg:inline">{link.label}</span>
+                {link.badgeCount && link.badgeCount > 0 ? (
+                  <span className="absolute right-2 top-1 flex size-6 items-center justify-center rounded-full border-2 border-white bg-[#dc2626] text-[11px] font-bold leading-none text-white lg:right-3 lg:top-2">
+                    {link.badgeCount > 99 ? "99+" : link.badgeCount}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

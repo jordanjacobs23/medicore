@@ -2,6 +2,7 @@ import { forbidden, redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/auth/session";
 import { Suspense } from "react";
 import { StaffSidebar } from "@/components/navigation/staff-sidebar";
+import { prisma } from "@/lib/prisma";
 
 async function StaffContent({
   children,
@@ -22,6 +23,13 @@ async function StaffContent({
     { href: "/today", label: "Today" },
     { href: "/calendar", label: "Calendar" },
     { href: "/patients", label: "Patients" },
+    { href: "/messages", label: "Messages", badgeCount: await prisma.portalMessage.count({
+      where: {
+        practiceId: session.practiceId,
+        senderType: "PATIENT",
+        readAt: null,
+      },
+    }) },
   ];
 
   if (["PRACTICE_MANAGER", "PRACTITIONER", "NURSE"].includes(session.role)) {

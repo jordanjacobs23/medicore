@@ -10,7 +10,7 @@ export default async function PatientPortalPage() {
     return null;
   }
   await requirePatientSelfAccess(session.userId);
-  const [patient, appointments, prescriptions] = await Promise.all([
+  const [patient, appointments, prescriptions, unreadMessages] = await Promise.all([
     prisma.patient.findFirst({
       where: { id: session.userId, practiceId: session.practiceId },
     }),
@@ -29,6 +29,14 @@ export default async function PatientPortalPage() {
       },
       orderBy: { createdAt: "desc" },
       take: 10,
+    }),
+    prisma.portalMessage.count({
+      where: {
+        practiceId: session.practiceId,
+        patientId: session.userId,
+        senderType: "PRACTICE",
+        readAt: null,
+      },
     }),
   ]);
 
@@ -55,9 +63,14 @@ export default async function PatientPortalPage() {
           <FileText className="size-5 text-[#397f99]" />
           <p className="mt-3 font-semibold">Documents</p>
         </Link>
-        <Link href="/portal/messages" className="rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
+        <Link href="/portal/messages" className="relative rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
           <MessageSquare className="size-5 text-[#397f99]" />
           <p className="mt-3 font-semibold">Messages</p>
+          {unreadMessages > 0 ? (
+            <span className="absolute right-3 top-3 flex size-6 items-center justify-center rounded-full border-2 border-white bg-[#dc2626] text-[11px] font-bold leading-none text-white">
+              {unreadMessages > 99 ? "99+" : unreadMessages}
+            </span>
+          ) : null}
         </Link>
       </section>
       <section className="mt-8 rounded-xl border border-slate-200 p-6">
