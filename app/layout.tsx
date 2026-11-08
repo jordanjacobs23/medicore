@@ -7,6 +7,7 @@ import Navbar from "@/components/navigation/navbar";
 import { ThemeProvider } from "@/components/ThemeProvider"
 import { ClerkProvider } from "@clerk/nextjs";
 import { Suspense } from "react";
+import { SessionTimeout } from "@/components/session-timeout";
 
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Suspense fallback={null}>
               <Navbar />
             </Suspense>
+            <SessionTimeout />
             {children}
           </ThemeProvider>
         </body>

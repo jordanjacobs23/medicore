@@ -67,21 +67,22 @@ export default async function StaffMessagesPage({
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {patientConversations.map((patient) => {
               const latest = patient.messages[0];
+              const hasUnreadMessages = patient._count.messages > 0;
               return (
-                <Link key={patient.id} href={`/messages/${patient.id}`} className="flex gap-4 px-5 py-4 transition hover:bg-[#397f99]/[0.035] dark:hover:bg-[#397f99]/10">
+                <Link key={patient.id} href={`/messages/${patient.id}`} className={`flex gap-4 px-5 py-4 transition hover:bg-[#397f99]/[0.035] dark:hover:bg-[#397f99]/10 ${hasUnreadMessages ? "bg-[#397f99]/[0.08] dark:bg-[#397f99]/[0.12]" : ""}`}>
                   <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#397f99]/10 font-bold text-[#397f99]">
                     {patient.firstName[0]}{patient.lastName[0]}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold text-slate-950 dark:text-white">{patient.firstName} {patient.lastName}</p>
+                      <p className={hasUnreadMessages ? "font-bold text-[#397f99] dark:text-sky-300" : "font-semibold text-slate-950 dark:text-white"}>{patient.firstName} {patient.lastName}</p>
                       {latest && <p className="shrink-0 text-xs text-slate-400">{latest.createdAt.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>}
                     </div>
                     <div className="mt-1 flex items-center gap-2">
-                      <p className="truncate text-sm text-slate-500">
+                      <p className={`truncate text-sm ${hasUnreadMessages ? "font-semibold text-slate-800 dark:text-slate-200" : "text-slate-500"}`}>
                         {latest?.senderType === "PRACTICE" ? "You: " : ""}{latest?.body ?? ""}
                       </p>
-                      {patient._count.messages > 0 && <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#397f99] text-[10px] font-bold text-white">{patient._count.messages}</span>}
+                      {hasUnreadMessages && <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#397f99] text-[10px] font-bold text-white">{patient._count.messages > 99 ? "99+" : patient._count.messages}</span>}
                     </div>
                   </div>
                 </Link>

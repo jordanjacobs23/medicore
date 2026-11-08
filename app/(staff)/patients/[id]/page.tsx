@@ -43,10 +43,26 @@ export default async function PatientDetailPage({
 
   if (!patient) notFound();
 
+  const breakGlassAccess = session.userType === "STAFF"
+    ? await prisma.breakGlassRequest.findFirst({
+        where: {
+          practiceId: session.practiceId,
+          requesterStaffId: session.userId,
+          patientId: patient.id,
+          status: "APPROVED",
+          expiresAt: { gt: new Date() },
+        },
+        select: { id: true },
+      })
+    : null;
+
   await logSensitiveRecordAccess(session, {
     action: "READ",
     resourceType: "PATIENT",
     resourceId: patient.id,
+    metadata: breakGlassAccess
+      ? { breakGlassRequestId: breakGlassAccess.id }
+      : undefined,
   });
 
   const [appointments, encounters, prescriptions, counts] = await Promise.all([

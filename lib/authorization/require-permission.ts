@@ -44,6 +44,21 @@ export async function requirePractitionerPatientAccess(patientId: string) {
     return session;
   }
 
+  const activeBreakGlassAccess = await prisma.breakGlassRequest.findFirst({
+    where: {
+      practiceId: session.practiceId,
+      requesterStaffId: session.userId,
+      patientId,
+      status: "APPROVED",
+      expiresAt: { gt: new Date() },
+    },
+    select: { id: true },
+  });
+
+  if (activeBreakGlassAccess) {
+    return session;
+  }
+
   const assignedPatient = await prisma.patient.findFirst({
     where: {
       id: patientId,

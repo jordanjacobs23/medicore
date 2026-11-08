@@ -1,0 +1,1 @@
+export const POPIA_NOTICE_VERSION = "2026-11-08";

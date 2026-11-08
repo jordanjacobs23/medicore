@@ -7,60 +7,66 @@ datasource db {
 }
 
 model Practice {
-  id             String            @id @default(cuid())
-  clerkOrgId     String            @unique
-  name           String
-  patients       Patient[]
-  staff          Staff[]
-  appointments   Appointment[]
-  encounters     Encounter[]
-  invoices       Invoice[]
-  payments       Payment[]
-  claims         Claim[]
-  documents      PatientDocument[]
-  portalMessages PortalMessage[]
-  auditLogs      AuditLog[]
+  id                 String              @id @default(cuid())
+  clerkOrgId         String              @unique
+  name               String
+  patients           Patient[]
+  staff              Staff[]
+  appointments       Appointment[]
+  encounters         Encounter[]
+  invoices           Invoice[]
+  payments           Payment[]
+  claims             Claim[]
+  documents          PatientDocument[]
+  portalMessages     PortalMessage[]
+  auditLogs          AuditLog[]
+  patientConsents    PatientConsent[]
+  breakGlassRequests BreakGlassRequest[]
 }
 
 model Staff {
-  id            String            @id @default(cuid())
-  clerkId       String            @unique
-  practiceId    String
-  email         String
-  firstName     String
-  lastName      String
-  role          StaffRole
-  isActive      Boolean           @default(true)
-  practice      Practice          @relation(fields: [practiceId], references: [id])
-  appointments  Appointment[]
-  encounters    Encounter[]
-  prescriptions Prescription[]
-  observations  Observation[]
-  invoices      Invoice[]
-  payments      Payment[]
-  claims        Claim[]
-  documents     PatientDocument[]
-  sentMessages  PortalMessage[]   @relation("PortalMessageStaffSender")
+  id                         String              @id @default(cuid())
+  clerkId                    String              @unique
+  practiceId                 String
+  email                      String
+  firstName                  String
+  lastName                   String
+  role                       StaffRole
+  isActive                   Boolean             @default(true)
+  practice                   Practice            @relation(fields: [practiceId], references: [id])
+  appointments               Appointment[]
+  encounters                 Encounter[]
+  prescriptions              Prescription[]
+  observations               Observation[]
+  invoices                   Invoice[]
+  payments                   Payment[]
+  claims                     Claim[]
+  documents                  PatientDocument[]
+  sentMessages               PortalMessage[]     @relation("PortalMessageStaffSender")
+  breakGlassRequests         BreakGlassRequest[] @relation("BreakGlassRequester")
+  reviewedBreakGlassRequests BreakGlassRequest[] @relation("BreakGlassReviewer")
 }
 
 model Patient {
-  id            String            @id @default(cuid())
-  clerkId       String            @unique
-  practiceId    String
-  email         String
-  firstName     String
-  lastName      String
-  practice      Practice          @relation(fields: [practiceId], references: [id])
-  appointments  Appointment[]
-  encounters    Encounter[]
-  prescriptions Prescription[]
-  observations  Observation[]
-  invoices      Invoice[]
-  payments      Payment[]
-  claims        Claim[]
-  documents     PatientDocument[]
-  messages      PortalMessage[]   @relation("PortalMessagePatientSubject")
-  sentMessages  PortalMessage[]   @relation("PortalMessagePatientSender")
+  id                 String              @id @default(cuid())
+  clerkId            String              @unique
+  practiceId         String
+  email              String
+  firstName          String
+  lastName           String
+  practice           Practice            @relation(fields: [practiceId], references: [id])
+  appointments       Appointment[]
+  encounters         Encounter[]
+  prescriptions      Prescription[]
+  observations       Observation[]
+  invoices           Invoice[]
+  payments           Payment[]
+  claims             Claim[]
+  documents          PatientDocument[]
+  messages           PortalMessage[]     @relation("PortalMessagePatientSubject")
+  sentMessages       PortalMessage[]     @relation("PortalMessagePatientSender")
+  consents           PatientConsent[]
+  breakGlassRequests BreakGlassRequest[]
 }
 
 model Appointment {
@@ -305,4 +311,48 @@ enum PortalMessageSender {
 enum AuditActorType {
   STAFF
   PATIENT
+}
+
+model PatientConsent {
+  id            String   @id @default(cuid())
+  practiceId    String
+  patientId     String
+  noticeVersion String
+  acceptedAt    DateTime @default(now())
+  acceptedByIp  String?
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+  patient  Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([practiceId, patientId, noticeVersion])
+  @@index([patientId, acceptedAt])
+}
+
+model BreakGlassRequest {
+  id               String           @id @default(cuid())
+  practiceId       String
+  patientId        String
+  requesterStaffId String
+  reviewerStaffId  String?
+  reason           String
+  status           BreakGlassStatus @default(PENDING)
+  expiresAt        DateTime?
+  reviewedAt       DateTime?
+  createdAt        DateTime         @default(now())
+
+  practice  Practice @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  requester Staff    @relation("BreakGlassRequester", fields: [requesterStaffId], references: [id], onDelete: Cascade)
+  reviewer  Staff?   @relation("BreakGlassReviewer", fields: [reviewerStaffId], references: [id], onDelete: SetNull)
+
+  @@index([practiceId, status, createdAt])
+  @@index([requesterStaffId, patientId, status])
+}
+
+enum BreakGlassStatus {
+  PENDING
+  APPROVED
+  DENIED
+  EXPIRED
+  REVOKED
 }

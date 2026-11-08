@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/auth/session";
 import { Suspense } from "react";
+import { prisma } from "@/lib/prisma";
+import { POPIA_NOTICE_VERSION } from "@/lib/privacy";
+import { PopiaNotice } from "@/components/popia-notice";
 
 async function PatientContent({
   children,
@@ -13,7 +16,23 @@ async function PatientContent({
     redirect("/sign-in");
   }
 
-  return children;
+  const consent = await prisma.patientConsent.findUnique({
+    where: {
+      practiceId_patientId_noticeVersion: {
+        practiceId: session.practiceId,
+        patientId: session.userId,
+        noticeVersion: POPIA_NOTICE_VERSION,
+      },
+    },
+    select: { id: true },
+  });
+
+  return (
+    <>
+      <PopiaNotice open={!consent} noticeVersion={POPIA_NOTICE_VERSION} />
+      {children}
+    </>
+  );
 }
 
 export default function PatientLayout({
