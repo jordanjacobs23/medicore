@@ -3,6 +3,7 @@ import {
   requirePractitionerPatientAccess,
 } from "@/lib/authorization/require-permission";
 import { prisma } from "@/lib/prisma";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { hasPermission } from "@/components/clinical-core/src/rbac";
 import { EditPatientPersonalInformation } from "@/components/edit-patient-personal-information";
 import Link from "next/link";
@@ -41,6 +42,12 @@ export default async function PatientDetailPage({
   });
 
   if (!patient) notFound();
+
+  await logSensitiveRecordAccess(session, {
+    action: "READ",
+    resourceType: "PATIENT",
+    resourceId: patient.id,
+  });
 
   const [appointments, encounters, prescriptions, counts] = await Promise.all([
     canReadAppointments

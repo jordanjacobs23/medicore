@@ -7,30 +7,31 @@ datasource db {
 }
 
 model Practice {
-  id           String        @id @default(cuid())
-  clerkOrgId   String        @unique
-  name         String
-  patients     Patient[]
-  staff        Staff[]
-  appointments Appointment[]
-  encounters   Encounter[]
-  invoices     Invoice[]
-  payments     Payment[]
-  claims       Claim[]
-  documents     PatientDocument[]
+  id             String            @id @default(cuid())
+  clerkOrgId     String            @unique
+  name           String
+  patients       Patient[]
+  staff          Staff[]
+  appointments   Appointment[]
+  encounters     Encounter[]
+  invoices       Invoice[]
+  payments       Payment[]
+  claims         Claim[]
+  documents      PatientDocument[]
   portalMessages PortalMessage[]
+  auditLogs      AuditLog[]
 }
 
 model Staff {
-  id            String         @id @default(cuid())
-  clerkId       String         @unique
+  id            String            @id @default(cuid())
+  clerkId       String            @unique
   practiceId    String
   email         String
   firstName     String
   lastName      String
   role          StaffRole
-  isActive      Boolean        @default(true)
-  practice      Practice       @relation(fields: [practiceId], references: [id])
+  isActive      Boolean           @default(true)
+  practice      Practice          @relation(fields: [practiceId], references: [id])
   appointments  Appointment[]
   encounters    Encounter[]
   prescriptions Prescription[]
@@ -39,17 +40,17 @@ model Staff {
   payments      Payment[]
   claims        Claim[]
   documents     PatientDocument[]
-  sentMessages  PortalMessage[] @relation("PortalMessageStaffSender")
+  sentMessages  PortalMessage[]   @relation("PortalMessageStaffSender")
 }
 
 model Patient {
-  id            String         @id @default(cuid())
-  clerkId       String         @unique
+  id            String            @id @default(cuid())
+  clerkId       String            @unique
   practiceId    String
   email         String
   firstName     String
   lastName      String
-  practice      Practice       @relation(fields: [practiceId], references: [id])
+  practice      Practice          @relation(fields: [practiceId], references: [id])
   appointments  Appointment[]
   encounters    Encounter[]
   prescriptions Prescription[]
@@ -58,8 +59,8 @@ model Patient {
   payments      Payment[]
   claims        Claim[]
   documents     PatientDocument[]
-  messages      PortalMessage[] @relation("PortalMessagePatientSubject")
-  sentMessages  PortalMessage[] @relation("PortalMessagePatientSender")
+  messages      PortalMessage[]   @relation("PortalMessagePatientSubject")
+  sentMessages  PortalMessage[]   @relation("PortalMessagePatientSender")
 }
 
 model Appointment {
@@ -193,26 +194,44 @@ model PatientDocument {
   size         Int
   createdAt    DateTime @default(now())
 
-  practice  Practice @relation(fields: [practiceId], references: [id])
-  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  uploadedBy Staff   @relation(fields: [uploadedById], references: [id])
+  practice   Practice @relation(fields: [practiceId], references: [id])
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  uploadedBy Staff    @relation(fields: [uploadedById], references: [id])
 }
 
 model PortalMessage {
-  id        String      @id @default(cuid())
-  practiceId String
-  patientId  String
-  senderType PortalMessageSender
-  senderStaffId String?
+  id              String              @id @default(cuid())
+  practiceId      String
+  patientId       String
+  senderType      PortalMessageSender
+  senderStaffId   String?
   senderPatientId String?
-  body      String
-  readAt    DateTime?
-  createdAt DateTime    @default(now())
+  body            String
+  readAt          DateTime?
+  createdAt       DateTime            @default(now())
 
-  practice Practice @relation(fields: [practiceId], references: [id])
-  patient  Patient  @relation("PortalMessagePatientSubject", fields: [patientId], references: [id], onDelete: Cascade)
-  senderStaff Staff? @relation("PortalMessageStaffSender", fields: [senderStaffId], references: [id])
+  practice      Practice @relation(fields: [practiceId], references: [id])
+  patient       Patient  @relation("PortalMessagePatientSubject", fields: [patientId], references: [id], onDelete: Cascade)
+  senderStaff   Staff?   @relation("PortalMessageStaffSender", fields: [senderStaffId], references: [id])
   senderPatient Patient? @relation("PortalMessagePatientSender", fields: [senderPatientId], references: [id])
+}
+
+model AuditLog {
+  id           String         @id @default(cuid())
+  practiceId   String
+  actorId      String
+  actorType    AuditActorType
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  createdAt    DateTime       @default(now())
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+
+  @@index([practiceId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([actorId, createdAt])
 }
 
 enum StaffRole {
@@ -281,4 +300,9 @@ enum ClaimStatus {
 enum PortalMessageSender {
   PATIENT
   PRACTICE
+}
+
+enum AuditActorType {
+  STAFF
+  PATIENT
 }
