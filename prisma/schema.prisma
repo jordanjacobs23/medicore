@@ -17,6 +17,8 @@ model Practice {
   invoices     Invoice[]
   payments     Payment[]
   claims       Claim[]
+  documents     PatientDocument[]
+  portalMessages PortalMessage[]
 }
 
 model Staff {
@@ -36,6 +38,8 @@ model Staff {
   invoices      Invoice[]
   payments      Payment[]
   claims        Claim[]
+  documents     PatientDocument[]
+  sentMessages  PortalMessage[] @relation("PortalMessageStaffSender")
 }
 
 model Patient {
@@ -53,6 +57,9 @@ model Patient {
   invoices      Invoice[]
   payments      Payment[]
   claims        Claim[]
+  documents     PatientDocument[]
+  messages      PortalMessage[] @relation("PortalMessagePatientSubject")
+  sentMessages  PortalMessage[] @relation("PortalMessagePatientSender")
 }
 
 model Appointment {
@@ -175,6 +182,39 @@ model Payment {
   recordedBy Staff    @relation(fields: [recordedById], references: [id])
 }
 
+model PatientDocument {
+  id           String   @id @default(cuid())
+  practiceId   String
+  patientId    String
+  uploadedById String
+  name         String
+  fileUrl      String
+  contentType  String
+  size         Int
+  createdAt    DateTime @default(now())
+
+  practice  Practice @relation(fields: [practiceId], references: [id])
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  uploadedBy Staff   @relation(fields: [uploadedById], references: [id])
+}
+
+model PortalMessage {
+  id        String      @id @default(cuid())
+  practiceId String
+  patientId  String
+  senderType PortalMessageSender
+  senderStaffId String?
+  senderPatientId String?
+  body      String
+  readAt    DateTime?
+  createdAt DateTime    @default(now())
+
+  practice Practice @relation(fields: [practiceId], references: [id])
+  patient  Patient  @relation("PortalMessagePatientSubject", fields: [patientId], references: [id], onDelete: Cascade)
+  senderStaff Staff? @relation("PortalMessageStaffSender", fields: [senderStaffId], references: [id])
+  senderPatient Patient? @relation("PortalMessagePatientSender", fields: [senderPatientId], references: [id])
+}
+
 enum StaffRole {
   PRACTICE_MANAGER
   PRACTITIONER
@@ -236,4 +276,9 @@ enum ClaimStatus {
   DENIED
   PAID
   CLOSED
+}
+
+enum PortalMessageSender {
+  PATIENT
+  PRACTICE
 }

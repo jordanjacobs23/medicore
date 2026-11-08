@@ -2,7 +2,7 @@ import { requirePatientSelfAccess } from "@/lib/authorization/require-permission
 import { getSessionContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { CalendarDays, CalendarPlus } from "lucide-react";
+import { CalendarDays, CalendarPlus, FileText, MessageSquare, ReceiptText } from "lucide-react";
 
 export default async function PatientPortalPage() {
   const session = await getSessionContext();
@@ -42,6 +42,24 @@ export default async function PatientPortalPage() {
       <p className="mt-2 text-slate-500">
         Welcome, {patient.firstName} {patient.lastName}
       </p>
+      <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Link href="/portal/appointments" className="rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
+          <CalendarDays className="size-5 text-[#397f99]" />
+          <p className="mt-3 font-semibold">Appointments</p>
+        </Link>
+        <Link href="/portal/invoices" className="rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
+          <ReceiptText className="size-5 text-[#397f99]" />
+          <p className="mt-3 font-semibold">Invoices</p>
+        </Link>
+        <Link href="/portal/documents" className="rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
+          <FileText className="size-5 text-[#397f99]" />
+          <p className="mt-3 font-semibold">Documents</p>
+        </Link>
+        <Link href="/portal/messages" className="rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
+          <MessageSquare className="size-5 text-[#397f99]" />
+          <p className="mt-3 font-semibold">Messages</p>
+        </Link>
+      </section>
       <section className="mt-8 rounded-xl border border-slate-200 p-6">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-bold">Appointments</h2>
@@ -63,7 +81,7 @@ export default async function PatientPortalPage() {
         )}
         <Link href="/portal/appointments" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#397f99]">
           <CalendarDays className="size-4" />
-          Manage appointments
+          Manage Appointments
         </Link>
       </section>
       <section className="mt-4 rounded-xl border border-slate-200 p-6">
