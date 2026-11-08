@@ -1,6 +1,8 @@
 import { requirePatientSelfAccess } from "@/lib/authorization/require-permission";
 import { getSessionContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import { CalendarDays, CalendarPlus } from "lucide-react";
 
 export default async function PatientPortalPage() {
   const session = await getSessionContext();
@@ -41,7 +43,13 @@ export default async function PatientPortalPage() {
         Welcome, {patient.firstName} {patient.lastName}
       </p>
       <section className="mt-8 rounded-xl border border-slate-200 p-6">
-        <h2 className="font-bold">Appointments</h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-bold">Appointments</h2>
+          <Link href="/portal/appointments/book" className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#397f99] px-3 text-sm font-semibold text-white">
+            <CalendarPlus className="size-4" />
+            Book
+          </Link>
+        </div>
         {appointments.length === 0 ? (
           <p className="mt-3 text-sm text-slate-500">No appointments recorded.</p>
         ) : (
@@ -53,6 +61,10 @@ export default async function PatientPortalPage() {
             ))}
           </ul>
         )}
+        <Link href="/portal/appointments" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#397f99]">
+          <CalendarDays className="size-4" />
+          Manage appointments
+        </Link>
       </section>
       <section className="mt-4 rounded-xl border border-slate-200 p-6">
         <h2 className="font-bold">Prescriptions</h2>

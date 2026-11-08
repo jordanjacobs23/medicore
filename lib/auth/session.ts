@@ -26,8 +26,6 @@ export const getSessionContext = cache(async () => {
       if (!activePractice || activePractice.id !== staff.practiceId) {
         return null;
       }
-    } else {
-      return null;
     }
 
     return {

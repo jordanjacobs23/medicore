@@ -4,6 +4,7 @@ import {
 } from "@/lib/authorization/require-permission";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/components/clinical-core/src/rbac";
+import { EditPatientPersonalInformation } from "@/components/edit-patient-personal-information";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -34,6 +35,7 @@ export default async function PatientDetailPage({
   const canReadAppointments = hasPermission(session.role, "appointment:read");
   const canReadEncounters = hasPermission(session.role, "encounter:read");
   const canReadPrescriptions = hasPermission(session.role, "prescription:read");
+  const canUpdatePatient = hasPermission(session.role, "patient:update");
   const patient = await prisma.patient.findFirst({
     where: { id, practiceId: session.practiceId },
   });
@@ -167,25 +169,34 @@ export default async function PatientDetailPage({
 
       <section className="mt-5 grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="space-y-5">
-          <article className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-              Patient information
-            </h2>
-            <dl className="mt-4 space-y-4 text-sm">
-              <div>
-                <dt className="text-xs text-slate-400">Email address</dt>
-                <dd className="mt-1 break-all font-medium text-slate-700 dark:text-slate-200">
-                  {patient.email}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-slate-400">Patient reference</dt>
-                <dd className="mt-1 font-mono text-xs font-medium text-[#397f99]">
-                  {patient.id}
-                </dd>
-              </div>
-            </dl>
-          </article>
+          {canUpdatePatient ? (
+            <EditPatientPersonalInformation
+              patientId={patient.id}
+              firstName={patient.firstName}
+              lastName={patient.lastName}
+              email={patient.email}
+            />
+          ) : (
+            <article className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                Patient information
+              </h2>
+              <dl className="mt-4 space-y-4 text-sm">
+                <div>
+                  <dt className="text-xs text-slate-400">Email address</dt>
+                  <dd className="mt-1 break-all font-medium text-slate-700 dark:text-slate-200">
+                    {patient.email}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-400">Patient reference</dt>
+                  <dd className="mt-1 font-mono text-xs font-medium text-[#397f99]">
+                    {patient.id}
+                  </dd>
+                </div>
+              </dl>
+            </article>
+          )}
 
           <article className="grid grid-cols-3 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
             {[
