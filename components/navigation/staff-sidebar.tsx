@@ -24,7 +24,6 @@ export type StaffSidebarLink = {
 };
 
 const icons = {
-  "/today": LayoutDashboard,
   "/calendar": CalendarDays,
   "/patients": Users,
   "/clinical": Stethoscope,
@@ -69,7 +68,7 @@ export function StaffSidebar({ links }: { links: StaffSidebarLink[] }) {
               icons[link.href as keyof typeof icons] ?? LayoutDashboard;
             const active =
               pathname === link.href ||
-              (link.href !== "/today" && pathname.startsWith(`${link.href}/`));
+              pathname.startsWith(`${link.href}/`);
 
             return (
               <Link

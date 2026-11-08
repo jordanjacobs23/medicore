@@ -38,16 +38,26 @@ export default async function CalendarPage({
       ? { practitionerId: session.userId }
       : {};
 
-  const [todayAppointments, bookedAppointments, arrivedAppointments, appointments] =
+  const [todayAppointments, waitingAppointments, openEncounters, appointments] =
     await Promise.all([
     prisma.appointment.count({
       where: { practiceId: session.practiceId, ...practitionerScope, scheduledAt: { gte: today, lt: tomorrow } },
     }),
     prisma.appointment.count({
-      where: { practiceId: session.practiceId, ...practitionerScope, status: "BOOKED" },
+      where: {
+        practiceId: session.practiceId,
+        ...practitionerScope,
+        status: "ARRIVED",
+        scheduledAt: { gte: today, lt: tomorrow },
+      },
     }),
-    prisma.appointment.count({
-      where: { practiceId: session.practiceId, ...practitionerScope, status: "ARRIVED", scheduledAt: { gte: today, lt: tomorrow } },
+    prisma.encounter.count({
+      where: {
+        practiceId: session.practiceId,
+        ...practitionerScope,
+        status: "IN_PROGRESS",
+        startedAt: { gte: today, lt: tomorrow },
+      },
     }),
     prisma.appointment.findMany({
       where: { practiceId: session.practiceId, ...practitionerScope, scheduledAt: { gte: selectedDate, lt: selectedTomorrow } },
@@ -80,10 +90,10 @@ export default async function CalendarPage({
 
       <section className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          ["Today", todayAppointments],
-          ["Booked", bookedAppointments],
-          ["Arrived", arrivedAppointments],
-          ["Scheduled on date", appointments.length],
+          ["Appointments today", todayAppointments],
+          ["Waiting", waitingAppointments],
+          ["Open encounters", openEncounters],
+          ["Tasks", 0],
         ].map(([label, value]) => (
           <article key={String(label)} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{label}</p>

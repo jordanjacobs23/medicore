@@ -80,5 +80,4 @@ export async function updateAppointmentStatus(formData: FormData) {
   });
 
   revalidatePath("/calendar");
-  revalidatePath("/today");
 }

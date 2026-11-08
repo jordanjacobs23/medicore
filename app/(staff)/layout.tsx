@@ -20,7 +20,6 @@ async function StaffContent({
   }
 
   const links = [
-    { href: "/today", label: "Today" },
     { href: "/calendar", label: "Calendar" },
     { href: "/patients", label: "Patients" },
     { href: "/messages", label: "Messages", badgeCount: await prisma.portalMessage.count({

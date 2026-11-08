@@ -45,7 +45,7 @@ export default async function ClinicalPage() {
           ? [{ href: "/clinical/new", label: "New encounter" }]
           : []),
         { href: "/patients", label: "Find patient" },
-        { href: "/today", label: "Open today's work" },
+        { href: "/calendar", label: "Open calendar" },
       ]}
     />
   );

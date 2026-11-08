@@ -9,8 +9,8 @@ const STAFF_DASHBOARD: Record<StaffRole, string> = {
   PRACTITIONER: "/clinical",
   RECEPTIONIST: "/calendar",
   BILLING_CLERK: "/billing",
-  NURSE: "/today",
-  ASSISTANT: "/today",
+  NURSE: "/calendar",
+  ASSISTANT: "/calendar",
   VIEWER: "/reports",
 };
 
