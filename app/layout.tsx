@@ -19,8 +19,8 @@ const MontserratVF = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "MediCore",
-  description: "A complete healthcare platform with appointment booking, electronic health records, telehealth, AI-powered clinical notes, e-prescriptions, medical-aid billing, and a patient portal — all built with POPIA-compliant privacy and security in mind.",
+  title: "MediCore | Connected Practice & Patient Care",
+  description: "MediCore brings practice scheduling, patient records, clinical encounters, billing, claims, and patient communication together in one workspace.",
   icons: {
     icon: "/images/site-logo.svg",
   }
