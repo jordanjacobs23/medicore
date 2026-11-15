@@ -7,6 +7,7 @@ import { logSensitiveRecordAccess } from "@/lib/audit";
 import { hasPermission } from "@/components/clinical-core/src/rbac";
 import { EditPatientPersonalInformation } from "@/components/edit-patient-personal-information";
 import { PatientAccountLink } from "@/components/patient-account-link";
+import { PatientChart } from "@/components/patient-chart";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -37,7 +38,20 @@ export default async function PatientDetailPage({
   const canReadAppointments = hasPermission(session.role, "appointment:read");
   const canReadEncounters = hasPermission(session.role, "encounter:read");
   const canReadPrescriptions = hasPermission(session.role, "prescription:read");
+  const canReadClinicalChart =
+    hasPermission(session.role, "encounter:read") ||
+    hasPermission(session.role, "observation:read") ||
+    hasPermission(session.role, "vital:read");
+  const canReadMedicalAid =
+    hasPermission(session.role, "patient:update") ||
+    hasPermission(session.role, "claim:*");
   const canUpdatePatient = hasPermission(session.role, "patient:update");
+  const canAddClinicalRecords =
+    canUpdatePatient || hasPermission(session.role, "observation:create");
+  const canAddVitals =
+    canUpdatePatient || hasPermission(session.role, "vital:create");
+  const canAddMedicalAid =
+    canUpdatePatient || hasPermission(session.role, "claim:*");
   const canConnectPatientAccount = hasPermission(
     session.role,
     "patient:connect_account",
@@ -138,6 +152,74 @@ export default async function PatientDetailPage({
           })
         : Promise.resolve(0),
     ]),
+  ]);
+
+  const [
+    medicalAids,
+    conditions,
+    allergies,
+    medicationHistory,
+    immunizations,
+    familyHistory,
+    labResults,
+    vitalSigns,
+  ] = await Promise.all([
+    canReadMedicalAid
+      ? prisma.patientMedicalAid.findMany({
+          where: { patientId: id },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
+    canReadClinicalChart
+      ? prisma.patientCondition.findMany({
+          where: { patientId: id },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
+    canReadClinicalChart
+      ? prisma.patientAllergy.findMany({
+          where: { patientId: id },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
+    canReadClinicalChart
+      ? prisma.medicationStatement.findMany({
+          where: { patientId: id },
+          orderBy: { recordedAt: "desc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
+    canReadClinicalChart
+      ? prisma.immunization.findMany({
+          where: { patientId: id },
+          orderBy: { administeredAt: "desc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
+    canReadClinicalChart
+      ? prisma.familyHistory.findMany({
+          where: { patientId: id },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
+    canReadClinicalChart
+      ? prisma.labResult.findMany({
+          where: { patientId: id },
+          orderBy: { resultAt: "desc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
+    canReadClinicalChart
+      ? prisma.vitalSign.findMany({
+          where: { patientId: id },
+          orderBy: { measuredAt: "desc" },
+          take: 100,
+        })
+      : Promise.resolve([]),
   ]);
 
   const initials =
@@ -346,6 +428,27 @@ export default async function PatientDetailPage({
               )}
             </article>
           </div>
+
+          {(canReadMedicalAid || canReadClinicalChart) && (
+            <div className="lg:-ml-[340px] lg:w-[calc(100%_+_340px)]">
+              <PatientChart
+                patientId={patient.id}
+                showMedicalAid={canReadMedicalAid}
+                showClinicalRecords={canReadClinicalChart}
+                canAddMedicalAid={canAddMedicalAid}
+                canAddClinicalRecords={canAddClinicalRecords}
+                canAddVitals={canAddVitals}
+                medicalAids={medicalAids}
+                conditions={conditions}
+                allergies={allergies}
+                medicationHistory={medicationHistory}
+                immunizations={immunizations}
+                familyHistory={familyHistory}
+                labResults={labResults}
+                vitalSigns={vitalSigns}
+              />
+            </div>
+          )}
         </div>
       </section>
     </main>

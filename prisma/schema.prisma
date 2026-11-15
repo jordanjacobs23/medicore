@@ -25,49 +25,82 @@ model Practice {
 }
 
 model Staff {
-  id                         String              @id @default(cuid())
-  clerkId                    String              @unique
+  id                         String                @id @default(cuid())
+  clerkId                    String                @unique
   practiceId                 String
   email                      String
   firstName                  String
   lastName                   String
   role                       StaffRole
-  isActive                   Boolean             @default(true)
-  practice                   Practice            @relation(fields: [practiceId], references: [id])
+  isActive                   Boolean               @default(true)
+  practice                   Practice              @relation(fields: [practiceId], references: [id])
   appointments               Appointment[]
   encounters                 Encounter[]
   prescriptions              Prescription[]
   observations               Observation[]
+  patientMedicalAids         PatientMedicalAid[]
+  patientConditions          PatientCondition[]
+  patientAllergies           PatientAllergy[]
+  medicationStatements       MedicationStatement[]
+  immunizations              Immunization[]
+  familyHistory              FamilyHistory[]
+  labResults                 LabResult[]
+  vitalSigns                 VitalSign[]
   invoices                   Invoice[]
   payments                   Payment[]
   claims                     Claim[]
   documents                  PatientDocument[]
-  sentMessages               PortalMessage[]     @relation("PortalMessageStaffSender")
-  breakGlassRequests         BreakGlassRequest[] @relation("BreakGlassRequester")
-  reviewedBreakGlassRequests BreakGlassRequest[] @relation("BreakGlassReviewer")
+  sentMessages               PortalMessage[]       @relation("PortalMessageStaffSender")
+  breakGlassRequests         BreakGlassRequest[]   @relation("BreakGlassRequester")
+  reviewedBreakGlassRequests BreakGlassRequest[]   @relation("BreakGlassReviewer")
 }
 
 model Patient {
-  id                 String              @id @default(cuid())
-  clerkId            String?             @unique
-  clerkInvitationId  String?              @unique
-  practiceId         String
-  email              String
-  firstName          String
-  lastName           String
-  practice           Practice            @relation(fields: [practiceId], references: [id])
-  appointments       Appointment[]
-  encounters         Encounter[]
-  prescriptions      Prescription[]
-  observations       Observation[]
-  invoices           Invoice[]
-  payments           Payment[]
-  claims             Claim[]
-  documents          PatientDocument[]
-  messages           PortalMessage[]     @relation("PortalMessagePatientSubject")
-  sentMessages       PortalMessage[]     @relation("PortalMessagePatientSender")
-  consents           PatientConsent[]
-  breakGlassRequests BreakGlassRequest[]
+  id                           String                @id @default(cuid())
+  clerkId                      String?               @unique
+  clerkInvitationId            String?               @unique
+  practiceId                   String
+  email                        String
+  firstName                    String
+  lastName                     String
+  preferredName                String?
+  dateOfBirth                  DateTime?             @db.Date
+  sexAtBirth                   PatientSexAtBirth?
+  genderIdentity               String?
+  phone                        String?
+  alternatePhone               String?
+  addressLine1                 String?
+  addressLine2                 String?
+  suburb                       String?
+  city                         String?
+  province                     String?
+  postalCode                   String?
+  country                      String?
+  preferredLanguage            String?
+  emergencyContactName         String?
+  emergencyContactRelationship String?
+  emergencyContactPhone        String?
+  practice                     Practice              @relation(fields: [practiceId], references: [id])
+  appointments                 Appointment[]
+  encounters                   Encounter[]
+  prescriptions                Prescription[]
+  observations                 Observation[]
+  medicalAids                  PatientMedicalAid[]
+  conditions                   PatientCondition[]
+  allergies                    PatientAllergy[]
+  medicationHistory            MedicationStatement[]
+  immunizations                Immunization[]
+  familyHistory                FamilyHistory[]
+  labResults                   LabResult[]
+  vitalSigns                   VitalSign[]
+  invoices                     Invoice[]
+  payments                     Payment[]
+  claims                       Claim[]
+  documents                    PatientDocument[]
+  messages                     PortalMessage[]       @relation("PortalMessagePatientSubject")
+  sentMessages                 PortalMessage[]       @relation("PortalMessagePatientSender")
+  consents                     PatientConsent[]
+  breakGlassRequests           BreakGlassRequest[]
 }
 
 model Appointment {
@@ -97,11 +130,18 @@ model Encounter {
   diagnosis      String?
   notes          String?
 
-  practice      Practice       @relation(fields: [practiceId], references: [id])
-  patient       Patient        @relation(fields: [patientId], references: [id])
-  practitioner  Staff          @relation(fields: [practitionerId], references: [id])
-  prescriptions Prescription[]
-  observations  Observation[]
+  practice             Practice              @relation(fields: [practiceId], references: [id])
+  patient              Patient               @relation(fields: [patientId], references: [id])
+  practitioner         Staff                 @relation(fields: [practitionerId], references: [id])
+  prescriptions        Prescription[]
+  observations         Observation[]
+  conditions           PatientCondition[]
+  allergies            PatientAllergy[]
+  medicationStatements MedicationStatement[]
+  immunizations        Immunization[]
+  familyHistory        FamilyHistory[]
+  labResults           LabResult[]
+  vitalSigns           VitalSign[]
 }
 
 model Prescription {
@@ -115,9 +155,10 @@ model Prescription {
   status         PrescriptionStatus @default(ACTIVE)
   createdAt      DateTime           @default(now())
 
-  encounter    Encounter @relation(fields: [encounterId], references: [id])
-  patient      Patient   @relation(fields: [patientId], references: [id])
-  practitioner Staff     @relation(fields: [practitionerId], references: [id])
+  encounter            Encounter             @relation(fields: [encounterId], references: [id])
+  patient              Patient               @relation(fields: [patientId], references: [id])
+  practitioner         Staff                 @relation(fields: [practitionerId], references: [id])
+  medicationStatements MedicationStatement[]
 }
 
 model Observation {
@@ -134,6 +175,209 @@ model Observation {
   encounter  Encounter? @relation(fields: [encounterId], references: [id])
   patient    Patient    @relation(fields: [patientId], references: [id])
   recordedBy Staff      @relation(fields: [recordedById], references: [id])
+
+  @@index([patientId, type, name, recordedAt])
+}
+
+model PatientMedicalAid {
+  id                      String    @id @default(cuid())
+  patientId               String
+  recordedById            String?
+  schemeName              String
+  planName                String?
+  membershipNumber        String
+  dependantCode           String?
+  principalMemberName     String?
+  relationshipToPrincipal String?
+  preAuthorizationNumber  String?
+  validFrom               DateTime? @db.Date
+  validThrough            DateTime? @db.Date
+  isPrimary               Boolean   @default(true)
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  patient    Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  recordedBy Staff?  @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([patientId, isPrimary])
+  @@index([patientId, validThrough])
+}
+
+model PatientCondition {
+  id           String                 @id @default(cuid())
+  patientId    String
+  encounterId  String?
+  recordedById String?
+  codeSystem   String?
+  code         String?
+  name         String
+  status       PatientConditionStatus @default(ACTIVE)
+  onsetDate    DateTime?              @db.Date
+  resolvedDate DateTime?              @db.Date
+  notes        String?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  patient    Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter  Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  recordedBy Staff?     @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([patientId, status])
+  @@index([patientId, onsetDate])
+  @@index([codeSystem, code])
+}
+
+model PatientAllergy {
+  id           String          @id @default(cuid())
+  patientId    String
+  encounterId  String?
+  recordedById String?
+  substance    String
+  reaction     String?
+  severity     AllergySeverity @default(UNKNOWN)
+  status       AllergyStatus   @default(ACTIVE)
+  onsetDate    DateTime?       @db.Date
+  verifiedAt   DateTime?
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  patient    Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter  Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  recordedBy Staff?     @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([patientId, status])
+  @@index([patientId, substance])
+}
+
+model MedicationStatement {
+  id             String           @id @default(cuid())
+  patientId      String
+  encounterId    String?
+  prescriptionId String?
+  recordedById   String?
+  medication     String
+  strength       String?
+  dosage         String?
+  route          String?
+  frequency      String?
+  instructions   String?
+  status         MedicationStatus @default(ACTIVE)
+  source         String?
+  startedAt      DateTime?        @db.Date
+  endedAt        DateTime?        @db.Date
+  notes          String?
+  recordedAt     DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter    Encounter?    @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
+  recordedBy   Staff?        @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([patientId, status])
+  @@index([patientId, startedAt])
+  @@index([prescriptionId])
+}
+
+model Immunization {
+  id               String             @id @default(cuid())
+  patientId        String
+  encounterId      String?
+  administeredById String?
+  vaccine          String
+  productName      String?
+  manufacturer     String?
+  lotNumber        String?
+  doseNumber       String?
+  route            String?
+  site             String?
+  status           ImmunizationStatus @default(COMPLETED)
+  administeredAt   DateTime?
+  nextDueAt        DateTime?          @db.Date
+  notes            String?
+  createdAt        DateTime           @default(now())
+
+  patient        Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter      Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  administeredBy Staff?     @relation(fields: [administeredById], references: [id], onDelete: SetNull)
+
+  @@index([patientId, administeredAt])
+  @@index([patientId, nextDueAt])
+  @@index([encounterId])
+}
+
+model FamilyHistory {
+  id           String   @id @default(cuid())
+  patientId    String
+  encounterId  String?
+  recordedById String?
+  relationship String
+  condition    String
+  codeSystem   String?
+  code         String?
+  ageAtOnset   Int?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  patient    Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter  Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  recordedBy Staff?     @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([patientId, relationship])
+  @@index([patientId, condition])
+}
+
+model LabResult {
+  id             String          @id @default(cuid())
+  patientId      String
+  encounterId    String?
+  recordedById   String?
+  testName       String
+  codeSystem     String?
+  code           String?
+  resultValue    String
+  numericValue   Decimal?        @db.Decimal(12, 4)
+  unit           String?
+  referenceRange String?
+  interpretation String?
+  status         LabResultStatus @default(FINAL)
+  collectedAt    DateTime?
+  resultAt       DateTime        @default(now())
+  notes          String?
+
+  patient    Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter  Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  recordedBy Staff?     @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([patientId, resultAt])
+  @@index([patientId, testName, resultAt])
+  @@index([codeSystem, code])
+}
+
+model VitalSign {
+  id           String        @id @default(cuid())
+  patientId    String
+  encounterId  String?
+  recordedById String?
+  kind         VitalSignKind
+  value        Decimal?      @db.Decimal(12, 4)
+  systolic     Decimal?      @db.Decimal(12, 4)
+  diastolic    Decimal?      @db.Decimal(12, 4)
+  unit         String?
+  measuredAt   DateTime      @default(now())
+  method       String?
+  bodySite     String?
+  notes        String?
+
+  patient    Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter  Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  recordedBy Staff?     @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([patientId, kind, measuredAt])
+  @@index([encounterId])
 }
 
 model Invoice {
@@ -312,6 +556,70 @@ enum PortalMessageSender {
 enum AuditActorType {
   STAFF
   PATIENT
+}
+
+enum PatientSexAtBirth {
+  FEMALE
+  MALE
+  INTERSEX
+  UNKNOWN
+}
+
+enum PatientConditionStatus {
+  ACTIVE
+  RESOLVED
+  INACTIVE
+}
+
+enum AllergySeverity {
+  UNKNOWN
+  MILD
+  MODERATE
+  SEVERE
+}
+
+enum AllergyStatus {
+  ACTIVE
+  INACTIVE
+  RESOLVED
+  ENTERED_IN_ERROR
+}
+
+enum MedicationStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  STOPPED
+  ENTERED_IN_ERROR
+}
+
+enum ImmunizationStatus {
+  COMPLETED
+  NOT_DONE
+  DECLINED
+  ENTERED_IN_ERROR
+}
+
+enum LabResultStatus {
+  PRELIMINARY
+  FINAL
+  AMENDED
+  CORRECTED
+  CANCELLED
+}
+
+enum VitalSignKind {
+  BLOOD_PRESSURE
+  HEART_RATE
+  RESPIRATORY_RATE
+  TEMPERATURE
+  OXYGEN_SATURATION
+  HEIGHT
+  WEIGHT
+  BMI
+  PAIN_SCORE
+  HEAD_CIRCUMFERENCE
+  OTHER
 }
 
 model PatientConsent {
