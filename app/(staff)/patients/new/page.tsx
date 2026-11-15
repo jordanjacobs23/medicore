@@ -27,7 +27,7 @@ export default async function NewPatientPage() {
                 Add patient
               </h1>
               <p className="mt-1 text-sm text-slate-500">
-                Create a patient record in the current practice.
+                Create a patient record, then connect an existing portal account or invite the patient from their profile.
               </p>
             </div>
           </div>

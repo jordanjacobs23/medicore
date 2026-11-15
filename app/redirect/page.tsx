@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
-import { getSessionContext } from "@/lib/auth/session";
+import {
+  claimPatientAccountFromInvitation,
+  getSessionContext,
+} from "@/lib/auth/session";
 import type { StaffRole } from "@/components/clinical-core/src/rbac";
 
 export const instant = false;
@@ -15,6 +18,8 @@ const STAFF_DASHBOARD: Record<StaffRole, string> = {
 };
 
 export default async function PostLoginPage() {
+  await claimPatientAccountFromInvitation();
+
   const session = await getSessionContext();
 
   if (!session) {

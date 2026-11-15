@@ -1,15 +1,26 @@
 "use server";
 
-import { requirePermission } from "@/lib/authorization/require-permission";
+import {
+  requirePermission,
+  requirePractitionerPatientAccess,
+} from "@/lib/authorization/require-permission";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { clerkClient } from "@clerk/nextjs/server";
+import type { User as ClerkUser } from "@clerk/backend";
 
 export type PatientUpdateState = {
   success: string | null;
   error: string | null;
 };
+
+export type PatientAccountLinkState = {
+  success: string | null;
+  error: string | null;
+};
+
+class PatientAccountLinkConflict extends Error {}
 
 export async function createPatient(formData: FormData) {
   const session = await requirePermission("patient:create");
@@ -24,7 +35,7 @@ export async function createPatient(formData: FormData) {
   await prisma.patient.create({
     data: {
       practiceId: session.practiceId,
-      clerkId: `test_patient_${randomUUID()}`,
+      clerkId: null,
       firstName,
       lastName,
       email,
@@ -65,4 +76,202 @@ export async function updatePatientPersonalInformation(
   revalidatePath("/patients");
 
   return { success: "Personal information updated.", error: null };
+}
+
+export async function connectPatientAccount(
+  patientId: string,
+  _state: PatientAccountLinkState,
+  _formData: FormData,
+): Promise<PatientAccountLinkState> {
+  const session = await requirePermission("patient:connect_account");
+  await requirePractitionerPatientAccess(patientId);
+
+  const patient = await prisma.patient.findFirst({
+    where: { id: patientId, practiceId: session.practiceId },
+    select: {
+      id: true,
+      email: true,
+      clerkId: true,
+      clerkInvitationId: true,
+    },
+  });
+
+  if (!patient) {
+    return { success: null, error: "Patient not found." };
+  }
+  if (patient.clerkId) {
+    revalidatePath(`/patients/${patient.id}`);
+    return { success: "A portal account is already connected.", error: null };
+  }
+
+  const email = patient.email.trim().toLowerCase();
+  let clerk: Awaited<ReturnType<typeof clerkClient>>;
+  let exactMatches: ClerkUser[];
+
+  try {
+    clerk = await clerkClient();
+    const users = await clerk.users.getUserList({
+      emailAddress: [email],
+      limit: 10,
+    });
+    exactMatches = users.data.filter((user) =>
+      user.emailAddresses.some(
+        (address) => address.emailAddress.trim().toLowerCase() === email,
+      ),
+    );
+  } catch {
+    return {
+      success: null,
+      error: "Couldn't check patient accounts right now. Please try again.",
+    };
+  }
+
+  if (exactMatches.length > 1) {
+    return {
+      success: null,
+      error: "More than one account uses this email. Contact your administrator.",
+    };
+  }
+
+  const existingUser = exactMatches[0];
+  if (existingUser) {
+    const matchingEmail = existingUser.emailAddresses.find(
+      (address) => address.emailAddress.trim().toLowerCase() === email,
+    );
+
+    if (matchingEmail?.verification?.status !== "verified") {
+      return {
+        success: null,
+        error: "This account has not verified the patient's email address yet.",
+      };
+    }
+
+    const [staffAccount, linkedPatient] = await Promise.all([
+      prisma.staff.findUnique({
+        where: { clerkId: existingUser.id },
+        select: { id: true },
+      }),
+      prisma.patient.findUnique({
+        where: { clerkId: existingUser.id },
+        select: { id: true },
+      }),
+    ]);
+
+    if (staffAccount) {
+      return {
+        success: null,
+        error: "This email belongs to a staff account and cannot be linked as a patient.",
+      };
+    }
+    if (linkedPatient && linkedPatient.id !== patient.id) {
+      return {
+        success: null,
+        error: "This account is already connected to another patient record.",
+      };
+    }
+
+    try {
+      if (patient.clerkInvitationId) {
+        await clerk.invitations
+          .revokeInvitation(patient.clerkInvitationId)
+          .catch(() => undefined);
+      }
+
+      await prisma.$transaction(async (tx) => {
+        const updated = await tx.patient.updateMany({
+          where: {
+            id: patient.id,
+            practiceId: session.practiceId,
+            clerkId: null,
+          },
+          data: { clerkId: existingUser.id, clerkInvitationId: null },
+        });
+        if (updated.count !== 1) throw new PatientAccountLinkConflict();
+
+        await tx.auditLog.create({
+          data: {
+            practiceId: session.practiceId,
+            actorId: session.userId,
+            actorType: "STAFF",
+            action: "UPDATE",
+            resourceType: "PATIENT_ACCOUNT",
+            resourceId: patient.id,
+            metadata: { operation: "LINK_EXISTING_ACCOUNT" },
+          },
+        });
+      });
+    } catch {
+      return {
+        success: null,
+        error: "This patient record changed while you were connecting the account. Refresh and try again.",
+      };
+    }
+
+    revalidatePath(`/patients/${patient.id}`);
+    revalidatePath("/patients");
+    return { success: "The existing portal account is now connected.", error: null };
+  }
+
+  try {
+    if (patient.clerkInvitationId) {
+      await clerk.invitations
+        .revokeInvitation(patient.clerkInvitationId)
+        .catch(() => undefined);
+    }
+
+    const invitation = await clerk.invitations.createInvitation({
+      emailAddress: email,
+      expiresInDays: 7,
+      ignoreExisting: true,
+      redirectUrl: "/redirect",
+      publicMetadata: {
+        medicorePatientId: patient.id,
+        medicorePracticeId: session.practiceId,
+      },
+    });
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const updated = await tx.patient.updateMany({
+          where: {
+            id: patient.id,
+            practiceId: session.practiceId,
+            clerkId: null,
+          },
+          data: { clerkInvitationId: invitation.id },
+        });
+        if (updated.count !== 1) throw new PatientAccountLinkConflict();
+
+        await tx.auditLog.create({
+          data: {
+            practiceId: session.practiceId,
+            actorId: session.userId,
+            actorType: "STAFF",
+            action: "UPDATE",
+            resourceType: "PATIENT_ACCOUNT",
+            resourceId: patient.id,
+            metadata: { operation: "SEND_PORTAL_INVITATION" },
+          },
+        });
+      });
+    } catch {
+      await clerk.invitations.revokeInvitation(invitation.id).catch(() => undefined);
+      return {
+        success: null,
+        error: "This patient record changed while you were sending the invitation. Refresh and try again.",
+      };
+    }
+  } catch {
+    return {
+      success: null,
+      error: "Couldn't send the patient portal invitation. Please try again.",
+    };
+  }
+
+  revalidatePath(`/patients/${patient.id}`);
+  revalidatePath("/patients");
+  return {
+    success: `A portal invitation was sent to ${email}. The account will connect when the patient accepts it.`,
+    error: null,
+  };
 }

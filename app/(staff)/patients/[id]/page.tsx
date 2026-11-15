@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { logSensitiveRecordAccess } from "@/lib/audit";
 import { hasPermission } from "@/components/clinical-core/src/rbac";
 import { EditPatientPersonalInformation } from "@/components/edit-patient-personal-information";
+import { PatientAccountLink } from "@/components/patient-account-link";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -37,6 +38,10 @@ export default async function PatientDetailPage({
   const canReadEncounters = hasPermission(session.role, "encounter:read");
   const canReadPrescriptions = hasPermission(session.role, "prescription:read");
   const canUpdatePatient = hasPermission(session.role, "patient:update");
+  const canConnectPatientAccount = hasPermission(
+    session.role,
+    "patient:connect_account",
+  );
   const patient = await prisma.patient.findFirst({
     where: { id, practiceId: session.practiceId },
   });
@@ -220,6 +225,14 @@ export default async function PatientDetailPage({
               </dl>
             </article>
           )}
+
+          {canConnectPatientAccount ? (
+            <PatientAccountLink
+              patientId={patient.id}
+              linked={Boolean(patient.clerkId)}
+              invitationPending={Boolean(patient.clerkInvitationId)}
+            />
+          ) : null}
 
           <article className="grid grid-cols-3 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
             {[

@@ -13,6 +13,7 @@ export const PERMISSIONS = {
     "patient:read",
     "patient:create",
     "patient:update",
+    "patient:connect_account",
     "encounter:read",
     "appointment:*",
     "invoice:*",
@@ -24,6 +25,7 @@ export const PERMISSIONS = {
   RECEPTIONIST: [
     "patient:read",
     "patient:create",
+    "patient:connect_account",
     "appointment:*",
     "communication:create",
   ],
