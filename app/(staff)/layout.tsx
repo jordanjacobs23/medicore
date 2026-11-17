@@ -43,6 +43,7 @@ async function StaffContent({
   links.push({ href: "/break-glass", label: "Break-glass" });
   if (session.role === "PRACTICE_MANAGER") {
     links.push({ href: "/practice/staff", label: "Practice" });
+    links.push({ href: "/practice/schedules", label: "Schedules" });
     links.push({ href: "/practice/settings", label: "Settings" });
   }
 

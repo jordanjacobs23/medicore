@@ -13,7 +13,7 @@ export default async function PracticeSettingsPage({
   const params = await searchParams;
   const practice = await prisma.practice.findUnique({
     where: { id: session.practiceId },
-    select: { name: true, clerkOrgId: true },
+    select: { name: true, clerkOrgId: true, timeZone: true },
   });
 
   if (!practice) {
@@ -50,6 +50,12 @@ export default async function PracticeSettingsPage({
           <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
             Practice name
             <input required maxLength={100} name="name" defaultValue={practice.name} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-normal outline-none transition focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950" />
+          </label>
+
+          <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Practice time zone
+            <input required name="timeZone" defaultValue={practice.timeZone} placeholder="Africa/Johannesburg" className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-normal outline-none transition focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950" />
+            <span className="block text-xs font-normal text-slate-500">Use an IANA time zone, such as Africa/Johannesburg or Europe/London. Calendar dates, slots, and reminders use this time zone.</span>
           </label>
 
           <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900/50">

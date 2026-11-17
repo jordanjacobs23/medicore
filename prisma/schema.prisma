@@ -7,34 +7,37 @@ datasource db {
 }
 
 model Practice {
-  id                 String              @id @default(cuid())
-  clerkOrgId         String              @unique
-  name               String
-  patients           Patient[]
-  staff              Staff[]
-  appointments       Appointment[]
-  encounters         Encounter[]
-  invoices           Invoice[]
-  payments           Payment[]
-  claims             Claim[]
-  documents          PatientDocument[]
-  portalMessages     PortalMessage[]
-  auditLogs          AuditLog[]
-  patientConsents    PatientConsent[]
-  breakGlassRequests BreakGlassRequest[]
+  id                    String                 @id @default(cuid())
+  clerkOrgId            String                 @unique
+  name                  String
+  timeZone              String                 @default("Africa/Johannesburg")
+  patients              Patient[]
+  staff                 Staff[]
+  appointments          Appointment[]
+  practitionerSchedules PractitionerSchedule[]
+  encounters            Encounter[]
+  invoices              Invoice[]
+  payments              Payment[]
+  claims                Claim[]
+  documents             PatientDocument[]
+  portalMessages        PortalMessage[]
+  auditLogs             AuditLog[]
+  patientConsents       PatientConsent[]
+  breakGlassRequests    BreakGlassRequest[]
 }
 
 model Staff {
-  id                         String                @id @default(cuid())
-  clerkId                    String                @unique
+  id                         String                 @id @default(cuid())
+  clerkId                    String                 @unique
   practiceId                 String
   email                      String
   firstName                  String
   lastName                   String
   role                       StaffRole
-  isActive                   Boolean               @default(true)
-  practice                   Practice              @relation(fields: [practiceId], references: [id])
+  isActive                   Boolean                @default(true)
+  practice                   Practice               @relation(fields: [practiceId], references: [id])
   appointments               Appointment[]
+  schedules                  PractitionerSchedule[]
   encounters                 Encounter[]
   prescriptions              Prescription[]
   observations               Observation[]
@@ -50,9 +53,9 @@ model Staff {
   payments                   Payment[]
   claims                     Claim[]
   documents                  PatientDocument[]
-  sentMessages               PortalMessage[]       @relation("PortalMessageStaffSender")
-  breakGlassRequests         BreakGlassRequest[]   @relation("BreakGlassRequester")
-  reviewedBreakGlassRequests BreakGlassRequest[]   @relation("BreakGlassReviewer")
+  sentMessages               PortalMessage[]        @relation("PortalMessageStaffSender")
+  breakGlassRequests         BreakGlassRequest[]    @relation("BreakGlassRequester")
+  reviewedBreakGlassRequests BreakGlassRequest[]    @relation("BreakGlassReviewer")
 }
 
 model Patient {
@@ -68,6 +71,7 @@ model Patient {
   sexAtBirth                   PatientSexAtBirth?
   genderIdentity               String?
   phone                        String?
+  smsRemindersEnabled          Boolean               @default(false)
   alternatePhone               String?
   addressLine1                 String?
   addressLine2                 String?
@@ -104,18 +108,62 @@ model Patient {
 }
 
 model Appointment {
-  id             String            @id @default(cuid())
-  practiceId     String
-  patientId      String
-  practitionerId String?
-  scheduledAt    DateTime
-  status         AppointmentStatus @default(BOOKED)
-  reason         String?
-  createdAt      DateTime          @default(now())
+  id              String            @id @default(cuid())
+  practiceId      String
+  patientId       String
+  practitionerId  String?
+  scheduledAt     DateTime
+  durationMinutes Int               @default(30)
+  status          AppointmentStatus @default(BOOKED)
+  reason          String?
+  createdAt       DateTime          @default(now())
 
-  practice     Practice @relation(fields: [practiceId], references: [id])
-  patient      Patient  @relation(fields: [patientId], references: [id])
-  practitioner Staff?   @relation(fields: [practitionerId], references: [id])
+  practice     Practice              @relation(fields: [practiceId], references: [id])
+  patient      Patient               @relation(fields: [patientId], references: [id])
+  practitioner Staff?                @relation(fields: [practitionerId], references: [id])
+  reminders    AppointmentReminder[]
+
+  @@index([practiceId, scheduledAt])
+  @@index([practitionerId, scheduledAt])
+}
+
+model PractitionerSchedule {
+  id                  String   @id @default(cuid())
+  practiceId          String
+  practitionerId      String
+  dayOfWeek           Int
+  startTime           String
+  endTime             String
+  slotDurationMinutes Int
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  practice     Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  practitioner Staff    @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+
+  @@unique([practitionerId, dayOfWeek])
+  @@index([practiceId, practitionerId, dayOfWeek])
+}
+
+model AppointmentReminder {
+  id            String                    @id @default(cuid())
+  appointmentId String
+  kind          AppointmentReminderKind
+  scheduledFor  DateTime
+  status        AppointmentReminderStatus @default(PENDING)
+  attempts      Int                       @default(0)
+  nextAttemptAt DateTime?
+  processingAt  DateTime?
+  sentAt        DateTime?
+  lastError     String?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@unique([appointmentId, kind])
+  @@index([status, scheduledFor])
+  @@index([status, nextAttemptAt])
 }
 
 model Encounter {
@@ -502,6 +550,19 @@ enum AppointmentStatus {
   COMPLETED
   CANCELLED
   NO_SHOW
+}
+
+enum AppointmentReminderKind {
+  DAY_BEFORE
+  TWO_HOURS_BEFORE
+}
+
+enum AppointmentReminderStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
 }
 
 enum EncounterStatus {

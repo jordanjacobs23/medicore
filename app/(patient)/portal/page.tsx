@@ -21,6 +21,7 @@ export default async function PatientPortalPage() {
       },
       orderBy: { scheduledAt: "desc" },
       take: 10,
+      include: { practice: { select: { timeZone: true } } },
     }),
     prisma.prescription.findMany({
       where: {
@@ -87,7 +88,7 @@ export default async function PatientPortalPage() {
           <ul className="mt-3 space-y-3">
             {appointments.map((appointment) => (
               <li key={appointment.id} className="text-sm">
-                {appointment.scheduledAt.toLocaleString()} - {appointment.status}
+                {appointment.scheduledAt.toLocaleString(undefined, { timeZone: appointment.practice.timeZone })} - {appointment.status}
               </li>
             ))}
           </ul>

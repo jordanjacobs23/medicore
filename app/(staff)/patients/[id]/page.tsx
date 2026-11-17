@@ -89,7 +89,7 @@ export default async function PatientDetailPage({
       ? prisma.appointment.findMany({
           where: { patientId: id, practiceId: session.practiceId },
           orderBy: { scheduledAt: "desc" },
-          include: { practitioner: true },
+          include: { practitioner: true, practice: { select: { timeZone: true } } },
           take: 8,
         })
       : Promise.resolve([]),
@@ -354,9 +354,9 @@ export default async function PatientDetailPage({
                 className="flex items-center gap-4 border-b border-slate-100 px-5 py-4 last:border-0 dark:border-slate-800/80"
               >
                 <div className="flex size-11 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-100 text-[10px] font-bold uppercase text-slate-500 dark:bg-slate-900">
-                  <span>{new Intl.DateTimeFormat("en", { month: "short" }).format(appointment.scheduledAt)}</span>
+                  <span>{new Intl.DateTimeFormat("en", { timeZone: appointment.practice.timeZone, month: "short" }).format(appointment.scheduledAt)}</span>
                   <span className="text-base leading-4 text-slate-800 dark:text-slate-200">
-                    {appointment.scheduledAt.getDate()}
+                    {new Intl.DateTimeFormat("en", { timeZone: appointment.practice.timeZone, day: "numeric" }).format(appointment.scheduledAt)}
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -364,7 +364,7 @@ export default async function PatientDetailPage({
                     {appointment.reason || "Clinical appointment"}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(appointment.scheduledAt)}
+                    {new Intl.DateTimeFormat("en", { timeZone: appointment.practice.timeZone, hour: "numeric", minute: "2-digit" }).format(appointment.scheduledAt)}
                     {appointment.practitioner
                       ? ` · ${appointment.practitioner.firstName} ${appointment.practitioner.lastName}`
                       : ""}

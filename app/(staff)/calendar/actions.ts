@@ -5,17 +5,22 @@ import { redirect } from "next/navigation";
 import { AppointmentStatus } from "@prisma/client";
 import { requirePermission } from "@/lib/authorization/require-permission";
 import { prisma } from "@/lib/prisma";
+import { createAppointmentInSlot, rescheduleAppointmentInSlot } from "@/lib/appointments/mutations";
+import { cancelPendingAppointmentReminders } from "@/lib/appointments/reminders";
 
 export async function createAppointment(formData: FormData) {
   const session = await requirePermission("appointment:*");
   const patientId = String(formData.get("patientId") ?? "");
   const practitionerId = String(formData.get("practitionerId") ?? "");
-  const scheduledAtValue = String(formData.get("scheduledAt") ?? "");
+  const date = String(formData.get("date") ?? "");
+  const time = String(formData.get("time") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
-  const scheduledAt = new Date(scheduledAtValue);
 
-  if (!patientId || !scheduledAtValue || Number.isNaN(scheduledAt.getTime())) {
-    throw new Error("Patient and appointment date/time are required.");
+  if (!patientId || !practitionerId || !date || !time) {
+    throw new Error("Patient, practitioner, date, and available time are required.");
+  }
+  if (reason.length > 500) {
+    throw new Error("The reason for the visit must be 500 characters or fewer.");
   }
 
   const patient = await prisma.patient.findFirst({
@@ -26,33 +31,17 @@ export async function createAppointment(formData: FormData) {
     throw new Error("Patient not found in this practice.");
   }
 
-  if (practitionerId) {
-    const practitioner = await prisma.staff.findFirst({
-      where: {
-        id: practitionerId,
-        practiceId: session.practiceId,
-        isActive: true,
-        role: "PRACTITIONER",
-      },
-      select: { id: true },
-    });
-    if (!practitioner) {
-      throw new Error("Practitioner not found in this practice.");
-    }
-  }
-
-  await prisma.appointment.create({
-    data: {
-      practiceId: session.practiceId,
-      patientId,
-      practitionerId: practitionerId || null,
-      scheduledAt,
-      reason: reason || null,
-      status: AppointmentStatus.BOOKED,
-    },
+  await createAppointmentInSlot({
+    practiceId: session.practiceId,
+    patientId,
+    practitionerId,
+    dateKey: date,
+    time,
+    reason: reason || null,
   });
 
   revalidatePath("/calendar");
+  revalidatePath("/today");
   redirect("/calendar");
 }
 
@@ -67,17 +56,61 @@ export async function updateAppointmentStatus(formData: FormData) {
   }
 
   const appointment = await prisma.appointment.findFirst({
-    where: { id: appointmentId, practiceId: session.practiceId },
+    where: {
+      id: appointmentId,
+      practiceId: session.practiceId,
+      ...(session.role === "PRACTITIONER" ? { practitionerId: session.userId } : {}),
+    },
     select: { id: true },
   });
   if (!appointment) {
     throw new Error("Appointment not found in this practice.");
   }
 
-  await prisma.appointment.update({
-    where: { id: appointment.id },
-    data: { status },
+  await prisma.$transaction(async (tx) => {
+    await tx.appointment.update({
+      where: { id: appointment.id },
+      data: { status },
+    });
+    if (status !== AppointmentStatus.BOOKED) {
+      await cancelPendingAppointmentReminders(tx, appointment.id);
+    }
   });
 
   revalidatePath("/calendar");
+  revalidatePath("/today");
+}
+
+export async function rescheduleStaffAppointment(formData: FormData) {
+  const session = await requirePermission("appointment:*");
+  const appointmentId = String(formData.get("appointmentId") ?? "");
+  const practitionerId = String(formData.get("practitionerId") ?? "");
+  const date = String(formData.get("date") ?? "");
+  const time = String(formData.get("time") ?? "");
+  if (!appointmentId || !practitionerId || !date || !time) {
+    throw new Error("Choose an available appointment time.");
+  }
+
+  const appointment = await prisma.appointment.findFirst({
+    where: {
+      id: appointmentId,
+      practiceId: session.practiceId,
+      ...(session.role === "PRACTITIONER" ? { practitionerId: session.userId } : {}),
+    },
+    select: { id: true },
+  });
+  if (!appointment) throw new Error("Appointment not found in this practice.");
+
+  await rescheduleAppointmentInSlot({
+    practiceId: session.practiceId,
+    appointmentId,
+    currentPractitionerId: session.role === "PRACTITIONER" ? session.userId : undefined,
+    practitionerId,
+    dateKey: date,
+    time,
+  });
+
+  revalidatePath("/calendar");
+  revalidatePath("/today");
+  redirect("/calendar");
 }
