@@ -4,8 +4,17 @@ import { requirePermission } from "@/lib/authorization/require-permission";
 import { prisma } from "@/lib/prisma";
 import { createEncounter } from "../actions";
 
-export default async function NewEncounterPage() {
+export default async function NewEncounterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await requirePermission("encounter:create");
+  const searchParamsValue = await searchParams;
+  const requestedPatientId =
+    typeof searchParamsValue.patientId === "string"
+      ? searchParamsValue.patientId
+      : undefined;
   const patients = await prisma.patient.findMany({
     where: {
       practiceId: session.practiceId,
@@ -16,8 +25,13 @@ export default async function NewEncounterPage() {
       ],
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    select: { id: true, firstName: true, lastName: true },
+    select: { id: true, firstName: true, lastName: true, dateOfBirth: true },
   });
+  const selectedPatientId = patients.some(
+    (patient) => patient.id === requestedPatientId,
+  )
+    ? requestedPatientId
+    : "";
 
   const inputClass =
     "min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
@@ -47,10 +61,15 @@ export default async function NewEncounterPage() {
             <legend className="text-sm font-bold text-slate-900 dark:text-white">Encounter</legend>
             <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               Patient
-              <select required name="patientId" defaultValue="" className={inputClass}>
+              <select required name="patientId" defaultValue={selectedPatientId} className={inputClass}>
                 <option value="" disabled>Select a patient</option>
                 {patients.map((patient) => (
-                  <option key={patient.id} value={patient.id}>{patient.firstName} {patient.lastName}</option>
+                  <option key={patient.id} value={patient.id}>
+                    {patient.firstName} {patient.lastName}
+                    {patient.dateOfBirth
+                      ? ` · DOB ${patient.dateOfBirth.toISOString().slice(0, 10)}`
+                      : " · DOB not recorded"}
+                  </option>
                 ))}
               </select>
             </label>
@@ -97,18 +116,41 @@ export default async function NewEncounterPage() {
           </fieldset>
 
           <fieldset className="grid gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800 sm:grid-cols-2">
-            <legend className="px-1 text-sm font-bold text-slate-900 dark:text-white">Prescription</legend>
+            <legend className="px-1 text-sm font-bold text-slate-900 dark:text-white">Electronic prescription record</legend>
+            <p className="text-xs leading-5 text-slate-500 sm:col-span-2">
+              Medication details are free text. Review the selected patient and chart before saving. This app does not check allergies or interactions, sign prescriptions, or send them to a pharmacy.
+            </p>
             <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               Medication
-              <input name="medication" className={inputClass} placeholder="Medication name" />
+              <input name="medication" maxLength={250} className={inputClass} placeholder="Medication name and strength" />
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Dosage
-              <input name="dosage" className={inputClass} placeholder="e.g. 500 mg twice daily" />
+              Dose per administration
+              <input name="dosage" maxLength={250} className={inputClass} placeholder="e.g. 1 tablet (500 mg)" />
             </label>
-            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200 sm:col-span-2">
-              Instructions
-              <textarea name="instructions" rows={3} className={inputClass} placeholder="Optional administration instructions" />
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Route
+              <input name="route" maxLength={100} className={inputClass} placeholder="e.g. oral" />
+            </label>
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Frequency
+              <input name="frequency" maxLength={150} className={inputClass} placeholder="e.g. twice daily, as needed" />
+            </label>
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Duration <span className="font-normal text-slate-400">(optional)</span>
+              <input name="duration" maxLength={100} className={inputClass} placeholder="e.g. 7 days" />
+            </label>
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Quantity
+              <input name="quantity" maxLength={100} className={inputClass} placeholder="e.g. 14 tablets, 100 mL" />
+            </label>
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Refills
+              <input name="refills" type="number" min="0" max="99" step="1" defaultValue="0" className={inputClass} />
+            </label>
+            <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200 sm:col-span-2">
+              Additional instructions <span className="font-normal text-slate-400">(optional)</span>
+              <textarea name="instructions" maxLength={1000} rows={3} className={inputClass} placeholder="Administration or patient instructions" />
             </label>
           </fieldset>
 

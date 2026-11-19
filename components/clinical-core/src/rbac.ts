@@ -60,6 +60,8 @@ export type StaffRole = Exclude<keyof typeof PERMISSIONS, "PATIENT">;
 export type Permission =
   | "encounter:create"
   | "encounter:update"
+  | "prescription:create"
+  | "prescription:update"
   | "prescription:read"
   | "observation:read"
   | (typeof PERMISSIONS)[keyof typeof PERMISSIONS][number];

@@ -25,6 +25,11 @@ export async function createEncounter(formData: FormData) {
   const observationUnit = text(formData, "observationUnit");
   const medication = text(formData, "medication");
   const dosage = text(formData, "dosage");
+  const route = text(formData, "route");
+  const frequency = text(formData, "frequency");
+  const duration = text(formData, "duration");
+  const quantity = text(formData, "quantity");
+  const refillsValue = text(formData, "refills");
   const instructions = text(formData, "instructions");
 
   if (!patientId || !chiefComplaint) {
@@ -58,11 +63,41 @@ export async function createEncounter(formData: FormData) {
   if (hasObservation && (!observationName || !observationValue)) {
     throw new Error("Observation name and value are both required.");
   }
-  if (medication && !dosage) {
-    throw new Error("Prescription dosage is required.");
-  }
-  if (dosage && !medication) {
-    throw new Error("Prescription medication is required.");
+  const hasPrescription = [
+    medication,
+    dosage,
+    route,
+    frequency,
+    duration,
+    quantity,
+    instructions,
+  ].some(Boolean);
+  let refills = 0;
+  if (hasPrescription) {
+    await requirePermission("prescription:create");
+    if (!medication || !dosage || !route || !frequency || !quantity) {
+      throw new Error(
+        "Medication, dose, route, frequency, and quantity are required for a prescription.",
+      );
+    }
+    if (
+      medication.length > 250 ||
+      dosage.length > 250 ||
+      route.length > 100 ||
+      frequency.length > 150 ||
+      duration.length > 100 ||
+      quantity.length > 100 ||
+      instructions.length > 1000
+    ) {
+      throw new Error("One or more prescription fields are too long.");
+    }
+    if (refillsValue && !/^\d{1,2}$/.test(refillsValue)) {
+      throw new Error("Refills must be a whole number between 0 and 99.");
+    }
+    refills = refillsValue ? Number(refillsValue) : 0;
+    if (refills > 99) {
+      throw new Error("Refills must be a whole number between 0 and 99.");
+    }
   }
 
   let observationType: ObservationType | undefined;
@@ -99,15 +134,31 @@ export async function createEncounter(formData: FormData) {
       });
     }
 
-    if (medication) {
-      await tx.prescription.create({
+    if (hasPrescription) {
+      const prescription = await tx.prescription.create({
         data: {
           encounterId: encounter.id,
           patientId: patient.id,
           practitionerId: practitioner.id,
           medication,
           dosage,
+          route,
+          frequency,
+          duration: duration || null,
+          quantity,
+          refills,
           instructions: instructions || null,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          practiceId: session.practiceId,
+          actorId: practitioner.id,
+          actorType: "STAFF",
+          action: "CREATE",
+          resourceType: "PRESCRIPTION",
+          resourceId: prescription.id,
+          metadata: { patientId: patient.id, encounterId: encounter.id },
         },
       });
     }

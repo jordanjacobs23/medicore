@@ -8,6 +8,7 @@ import { hasPermission } from "@/components/clinical-core/src/rbac";
 import { EditPatientPersonalInformation } from "@/components/edit-patient-personal-information";
 import { PatientAccountLink } from "@/components/patient-account-link";
 import { PatientChart } from "@/components/patient-chart";
+import { cancelPrescription } from "../../clinical/prescriptions/actions";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -38,6 +39,9 @@ export default async function PatientDetailPage({
   const canReadAppointments = hasPermission(session.role, "appointment:read");
   const canReadEncounters = hasPermission(session.role, "encounter:read");
   const canReadPrescriptions = hasPermission(session.role, "prescription:read");
+  const canCancelPrescriptions =
+    session.role === "PRACTITIONER" &&
+    hasPermission(session.role, "prescription:update");
   const canReadClinicalChart =
     hasPermission(session.role, "encounter:read") ||
     hasPermission(session.role, "observation:read") ||
@@ -257,7 +261,7 @@ export default async function PatientDetailPage({
                 </p>
               </div>
             </div>
-            <div className="flex gap-2 pb-1">
+            <div className="flex flex-wrap gap-2 pb-1">
               <a
                 href={`mailto:${patient.email}`}
                 className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-[#397f99] hover:text-[#397f99] dark:border-slate-700 dark:text-slate-200"
@@ -272,6 +276,15 @@ export default async function PatientDetailPage({
                 <CalendarDays className="size-4" />
                 Book visit
               </Link>
+              {session.role === "PRACTITIONER" && (
+                <Link
+                  href={`/clinical/new?patientId=${patient.id}`}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#397f99] px-4 text-sm font-semibold text-[#397f99] transition hover:bg-[#397f99]/5 dark:text-sky-300"
+                >
+                  <Stethoscope className="size-4" />
+                  New encounter / prescription
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -417,10 +430,43 @@ export default async function PatientDetailPage({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-slate-800 dark:text-slate-200">{prescription.medication}</p>
-                      <p className="mt-1 text-xs text-slate-500">{prescription.dosage}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {prescription.dosage} · {prescription.route ?? "Route not recorded"} · {prescription.frequency ?? "Frequency not recorded"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {prescription.duration ? `Duration ${prescription.duration} · ` : ""}
+                        {prescription.quantity ? `Quantity ${prescription.quantity} · ` : ""}
+                        {prescription.refills} refill{prescription.refills === 1 ? "" : "s"}
+                      </p>
+                      {prescription.instructions && (
+                        <p className="mt-2 text-xs text-slate-500">{prescription.instructions}</p>
+                      )}
+                      <p className="mt-2 text-xs text-slate-400">
+                        Prescribed by {prescription.practitioner.firstName} {prescription.practitioner.lastName} on {formatDate(prescription.createdAt)}. Electronic record only; not sent to a pharmacy.
+                      </p>
                     </div>
                     <span className="text-[10px] font-bold text-slate-400">{prescription.status}</span>
                   </div>
+                  {canCancelPrescriptions &&
+                    prescription.status === "ACTIVE" &&
+                    prescription.practitionerId === session.userId && (
+                      <details className="mt-3 text-xs">
+                        <summary className="w-fit cursor-pointer font-semibold text-rose-700 dark:text-rose-300">
+                          Cancel prescription
+                        </summary>
+                        <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg bg-rose-50 p-3 dark:bg-rose-950/40">
+                          <p className="text-rose-800 dark:text-rose-200">
+                            This marks it cancelled and keeps it in the patient record.
+                          </p>
+                          <form action={cancelPrescription.bind(null, prescription.id)}>
+                            <input type="hidden" name="confirmCancellation" value="yes" />
+                            <button type="submit" className="rounded-md bg-rose-700 px-3 py-2 font-semibold text-white hover:bg-rose-800">
+                              Confirm cancellation
+                            </button>
+                          </form>
+                        </div>
+                      </details>
+                    )}
                 </div>
               ))}
               {prescriptions.length === 0 && (

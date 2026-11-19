@@ -199,6 +199,11 @@ model Prescription {
   practitionerId String
   medication     String
   dosage         String
+  route          String?
+  frequency      String?
+  duration       String?
+  quantity       String?
+  refills        Int                @default(0)
   instructions   String?
   status         PrescriptionStatus @default(ACTIVE)
   createdAt      DateTime           @default(now())

@@ -1,0 +1,6 @@
+ALTER TABLE "Prescription"
+ADD COLUMN "route" TEXT,
+ADD COLUMN "frequency" TEXT,
+ADD COLUMN "duration" TEXT,
+ADD COLUMN "quantity" TEXT,
+ADD COLUMN "refills" INTEGER NOT NULL DEFAULT 0;

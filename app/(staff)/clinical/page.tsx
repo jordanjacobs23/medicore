@@ -33,7 +33,7 @@ export default async function ClinicalPage() {
   return (
     <StaffDashboard
       title="Clinical workspace"
-      description="Review encounters, prescriptions, observations, and patient care activity."
+      description="Review encounters, electronic prescription records, observations, and patient care activity. Prescription records are not signed or transmitted to pharmacies."
       cards={[
         { label: "Active encounters", value: activeEncounters },
         { label: "Active prescriptions", value: activePrescriptions },

@@ -30,6 +30,9 @@ export default async function PatientPortalPage() {
       },
       orderBy: { createdAt: "desc" },
       take: 10,
+      include: {
+        practitioner: { select: { firstName: true, lastName: true } },
+      },
     }),
     prisma.portalMessage.count({
       where: {
@@ -106,11 +109,28 @@ export default async function PatientPortalPage() {
           <ul className="mt-3 space-y-3">
             {prescriptions.map((prescription) => (
               <li key={prescription.id} className="text-sm">
-                {prescription.medication} - {prescription.dosage}
+                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-900">
+                  <p className="font-semibold text-slate-800 dark:text-slate-100">{prescription.medication}</p>
+                  <p className="mt-1 text-slate-600 dark:text-slate-300">
+                    {prescription.dosage} · {prescription.route ?? "Route not recorded"} · {prescription.frequency ?? "Frequency not recorded"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {prescription.duration ? `Duration ${prescription.duration} · ` : ""}
+                    {prescription.quantity ? `Quantity ${prescription.quantity} · ` : ""}
+                    {prescription.refills} refill{prescription.refills === 1 ? "" : "s"} · {prescription.status}
+                  </p>
+                  {prescription.instructions && <p className="mt-2 text-xs text-slate-500">{prescription.instructions}</p>}
+                  <p className="mt-2 text-xs text-slate-400">
+                    Prescribed by {prescription.practitioner.firstName} {prescription.practitioner.lastName} on {prescription.createdAt.toLocaleDateString()}. This is an electronic record and was not sent to a pharmacy.
+                  </p>
+                </div>
               </li>
             ))}
           </ul>
         )}
+        <p className="mt-3 text-xs text-slate-400">
+          Prescription entries are free text. The portal does not assess allergies or medication interactions.
+        </p>
       </section>
     </main>
   );
