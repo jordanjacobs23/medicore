@@ -116,8 +116,13 @@ async function createChartRecord<T extends { id: string }>(
 export async function createPatientMedicalAid(patientId: string, formData: FormData) {
   const schemeName = text(formData, "schemeName");
   const membershipNumber = text(formData, "membershipNumber");
+  const validFrom = optionalDate(formData, "validFrom", "valid-from date");
+  const validThrough = optionalDate(formData, "validThrough", "valid-through date");
   if (!schemeName || !membershipNumber) {
     throw new Error("Medical-aid scheme and membership number are required.");
+  }
+  if (validFrom && validThrough && validThrough < validFrom) {
+    throw new Error("The valid-through date must be on or after the valid-from date.");
   }
 
   await createChartRecord(patientId, medicalAidPermissions, "PATIENT_MEDICAL_AID", (tx, staffId) =>
@@ -126,19 +131,77 @@ export async function createPatientMedicalAid(patientId: string, formData: FormD
         patientId,
         recordedById: staffId,
         schemeName,
+        schemeCode: text(formData, "schemeCode") || null,
         planName: text(formData, "planName") || null,
         membershipNumber,
         dependantCode: text(formData, "dependantCode") || null,
         principalMemberName: text(formData, "principalMemberName") || null,
         relationshipToPrincipal: text(formData, "relationshipToPrincipal") || null,
         preAuthorizationNumber: text(formData, "preAuthorizationNumber") || null,
-        validFrom: optionalDate(formData, "validFrom", "valid-from date"),
-        validThrough: optionalDate(formData, "validThrough", "valid-through date"),
-        isPrimary: formData.get("isPrimary") === "on",
+        validFrom,
+        validThrough,
+        isPrimary: false,
         notes: text(formData, "notes") || null,
       },
     }),
   );
+}
+
+export async function switchPatientMedicalAid(patientId: string, medicalAidId: string) {
+  const session = await getSessionContext();
+  if (
+    !session ||
+    session.userType !== "STAFF" ||
+    !medicalAidPermissions.some((permission) => hasPermission(session.role, permission))
+  ) {
+    forbidden();
+  }
+  await requirePractitionerPatientAccess(patientId);
+
+  const patient = await prisma.patient.findFirst({
+    where: { id: patientId, practiceId: session.practiceId },
+    select: { id: true },
+  });
+  if (!patient) throw new Error("Patient not found in this practice.");
+
+  await prisma.$transaction(async (tx) => {
+    const selectedAid = await tx.patientMedicalAid.findFirst({
+      where: { id: medicalAidId, patientId: patient.id },
+      select: { id: true },
+    });
+    if (!selectedAid) throw new Error("Medical-aid cover not found for this patient.");
+
+    const currentPrimary = await tx.patientMedicalAid.findFirst({
+      where: { patientId: patient.id, isPrimary: true },
+      select: { id: true },
+    });
+    if (currentPrimary?.id === selectedAid.id) return;
+
+    await tx.patientMedicalAid.updateMany({
+      where: { patientId: patient.id, isPrimary: true },
+      data: { isPrimary: false },
+    });
+    await tx.patientMedicalAid.update({
+      where: { id: selectedAid.id },
+      data: { isPrimary: true },
+    });
+    await tx.auditLog.create({
+      data: {
+        practiceId: session.practiceId,
+        actorId: session.userId,
+        actorType: "STAFF",
+        action: "UPDATE",
+        resourceType: "PATIENT_MEDICAL_AID",
+        resourceId: selectedAid.id,
+        metadata: {
+          operation: "SWITCH_PRIMARY",
+          previousMedicalAidId: currentPrimary?.id ?? null,
+        },
+      },
+    });
+  });
+
+  revalidatePath(`/patients/${patient.id}`);
 }
 
 export async function createPatientCondition(patientId: string, formData: FormData) {

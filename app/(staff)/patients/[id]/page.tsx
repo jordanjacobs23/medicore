@@ -9,6 +9,7 @@ import { EditPatientPersonalInformation } from "@/components/edit-patient-person
 import { PatientAccountLink } from "@/components/patient-account-link";
 import { PatientChart } from "@/components/patient-chart";
 import { cancelPrescription } from "../../clinical/prescriptions/actions";
+import { completeEncounter } from "../../clinical/actions";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -54,7 +55,7 @@ export default async function PatientDetailPage({
     canUpdatePatient || hasPermission(session.role, "observation:create");
   const canAddVitals =
     canUpdatePatient || hasPermission(session.role, "vital:create");
-  const canAddMedicalAid =
+  const canManageMedicalAid =
     canUpdatePatient || hasPermission(session.role, "claim:*");
   const canConnectPatientAccount = hasPermission(
     session.role,
@@ -171,7 +172,7 @@ export default async function PatientDetailPage({
     canReadMedicalAid
       ? prisma.patientMedicalAid.findMany({
           where: { patientId: id },
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
           take: 20,
         })
       : Promise.resolve([]),
@@ -413,6 +414,21 @@ export default async function PatientDetailPage({
                       Diagnosis: {encounter.diagnosis}
                     </p>
                   )}
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    {session.role === "PRACTITIONER" && encounter.status === "IN_PROGRESS" && (
+                      <form action={completeEncounter}>
+                        <input type="hidden" name="encounterId" value={encounter.id} />
+                        <button type="submit" className="text-xs font-semibold text-[#397f99] hover:underline">
+                          Sign & complete encounter
+                        </button>
+                      </form>
+                    )}
+                    {encounter.status === "COMPLETED" && hasPermission(session.role, "claim:*") && (
+                      <Link href={`/billing/claims/new?encounterId=${encounter.id}`} className="text-xs font-semibold text-[#397f99] hover:underline">
+                        Prepare medical-aid claim
+                      </Link>
+                    )}
+                  </div>
                 </div>
               ))}
               {encounters.length === 0 && (
@@ -481,7 +497,7 @@ export default async function PatientDetailPage({
                 patientId={patient.id}
                 showMedicalAid={canReadMedicalAid}
                 showClinicalRecords={canReadClinicalChart}
-                canAddMedicalAid={canAddMedicalAid}
+                canManageMedicalAid={canManageMedicalAid}
                 canAddClinicalRecords={canAddClinicalRecords}
                 canAddVitals={canAddVitals}
                 medicalAids={medicalAids}

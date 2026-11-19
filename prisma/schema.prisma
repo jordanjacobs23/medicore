@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -177,6 +178,8 @@ model Encounter {
   chiefComplaint String?
   diagnosis      String?
   notes          String?
+  signedAt       DateTime?
+  lockedHash     String?
 
   practice             Practice              @relation(fields: [practiceId], references: [id])
   patient              Patient               @relation(fields: [patientId], references: [id])
@@ -190,6 +193,8 @@ model Encounter {
   familyHistory        FamilyHistory[]
   labResults           LabResult[]
   vitalSigns           VitalSign[]
+  invoices             Invoice[]
+  claims               Claim[]
 }
 
 model Prescription {
@@ -237,6 +242,7 @@ model PatientMedicalAid {
   patientId               String
   recordedById            String?
   schemeName              String
+  schemeCode              String?
   planName                String?
   membershipNumber        String
   dependantCode           String?
@@ -245,7 +251,7 @@ model PatientMedicalAid {
   preAuthorizationNumber  String?
   validFrom               DateTime? @db.Date
   validThrough            DateTime? @db.Date
-  isPrimary               Boolean   @default(true)
+  isPrimary               Boolean   @default(false)
   notes                   String?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
@@ -253,6 +259,7 @@ model PatientMedicalAid {
   patient    Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   recordedBy Staff?  @relation(fields: [recordedById], references: [id], onDelete: SetNull)
 
+  @@unique([patientId], map: "PatientMedicalAid_one_primary_per_patient", where: raw("\"isPrimary\" = true"))
   @@index([patientId, isPrimary])
   @@index([patientId, validThrough])
 }
@@ -434,52 +441,110 @@ model VitalSign {
 }
 
 model Invoice {
-  id          String        @id @default(cuid())
-  practiceId  String
-  patientId   String
-  createdById String
-  amount      Decimal
-  status      InvoiceStatus @default(DRAFT)
-  dueDate     DateTime?
-  createdAt   DateTime      @default(now())
+  id           String        @id @default(cuid())
+  practiceId   String
+  patientId    String
+  encounterId  String?
+  createdById  String
+  amount       Decimal
+  patientShare Decimal       @default(0) @db.Decimal(12, 2)
+  schemeShare  Decimal       @default(0) @db.Decimal(12, 2)
+  status       InvoiceStatus @default(DRAFT)
+  dueDate      DateTime?
+  createdAt    DateTime      @default(now())
 
-  practice  Practice  @relation(fields: [practiceId], references: [id])
-  patient   Patient   @relation(fields: [patientId], references: [id])
-  createdBy Staff     @relation(fields: [createdById], references: [id])
+  practice  Practice      @relation(fields: [practiceId], references: [id])
+  patient   Patient       @relation(fields: [patientId], references: [id])
+  encounter Encounter?    @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  createdBy Staff         @relation(fields: [createdById], references: [id])
+  lines     InvoiceLine[]
   payments  Payment[]
   claims    Claim[]
+
+  @@index([encounterId])
+}
+
+model InvoiceLine {
+  id            String   @id @default(cuid())
+  invoiceId     String
+  tariffCode    String
+  icd10Code     String?
+  description   String
+  quantity      Int      @default(1)
+  unitPrice     Decimal  @db.Decimal(12, 2)
+  amount        Decimal  @db.Decimal(12, 2)
+  modifierCodes String[] @default([])
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }
 
 model Claim {
-  id            String      @id @default(cuid())
-  practiceId    String
-  patientId     String
-  invoiceId     String?
-  submittedById String
-  payer         String
-  claimNumber   String?
-  amount        Decimal
-  status        ClaimStatus @default(DRAFT)
-  submittedAt   DateTime?
-  adjudicatedAt DateTime?
-  createdAt     DateTime    @default(now())
+  id                String      @id @default(cuid())
+  practiceId        String
+  patientId         String
+  encounterId       String?
+  invoiceId         String?
+  submittedById     String
+  payer             String
+  schemeCode        String?
+  memberNumber      String?
+  dependantCode     String?
+  claimNumber       String?
+  amount            Decimal
+  amountAuthorised  Decimal?    @db.Decimal(12, 2)
+  amountPaid        Decimal?    @db.Decimal(12, 2)
+  status            ClaimStatus @default(DRAFT)
+  rejectReason      String?
+  switchingRef      String?
+  rawRequest        Json?
+  rawResponse       Json?
+  submittedAt       DateTime?
+  acknowledgedAt    DateTime?
+  responseAt        DateTime?
+  adjudicatedAt     DateTime?
+  resubmissionCount Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
-  practice    Practice @relation(fields: [practiceId], references: [id])
-  patient     Patient  @relation(fields: [patientId], references: [id])
-  invoice     Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  submittedBy Staff    @relation(fields: [submittedById], references: [id])
+  practice    Practice     @relation(fields: [practiceId], references: [id])
+  patient     Patient      @relation(fields: [patientId], references: [id])
+  encounter   Encounter?   @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  submittedBy Staff        @relation(fields: [submittedById], references: [id])
+  events      ClaimEvent[]
+
+  @@index([practiceId, status])
+  @@index([patientId])
+  @@index([encounterId])
+  @@index([switchingRef])
+}
+
+model ClaimEvent {
+  id          String   @id @default(cuid())
+  claimId     String
+  type        String
+  description String
+  payload     Json?
+  createdAt   DateTime @default(now())
+
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([claimId, createdAt])
 }
 
 model Payment {
-  id           String        @id @default(cuid())
+  id           String           @id @default(cuid())
   practiceId   String
   patientId    String
   invoiceId    String
   recordedById String
   amount       Decimal
   method       PaymentMethod
+  payerType    PaymentPayerType @default(PATIENT)
   reference    String?
-  recordedAt   DateTime      @default(now())
+  recordedAt   DateTime         @default(now())
 
   practice   Practice @relation(fields: [practiceId], references: [id])
   patient    Patient  @relation(fields: [patientId], references: [id])
@@ -602,16 +667,27 @@ enum PaymentMethod {
   EFT
   BANK_TRANSFER
   OTHER
+  MEDICAL_AID
+}
+
+enum PaymentPayerType {
+  PATIENT
+  MEDICAL_AID
 }
 
 enum ClaimStatus {
   DRAFT
   SUBMITTED
+  ACKNOWLEDGED
   PENDING
   APPROVED
+  PARTIALLY_APPROVED
   DENIED
+  REJECTED
+  RESUBMITTED
   PAID
   CLOSED
+  WRITTEN_OFF
 }
 
 enum PortalMessageSender {

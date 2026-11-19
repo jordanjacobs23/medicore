@@ -38,13 +38,14 @@ import {
   createPatientCondition,
   createPatientMedicalAid,
   createVitalSign,
+  switchPatientMedicalAid,
 } from "@/app/(staff)/patients/chart-actions";
 
 type Props = {
   patientId: string;
   showMedicalAid: boolean;
   showClinicalRecords: boolean;
-  canAddMedicalAid: boolean;
+  canManageMedicalAid: boolean;
   canAddClinicalRecords: boolean;
   canAddVitals: boolean;
   medicalAids: PatientMedicalAid[];
@@ -351,7 +352,7 @@ export function PatientChart({
   patientId,
   showMedicalAid,
   showClinicalRecords,
-  canAddMedicalAid,
+  canManageMedicalAid,
   canAddClinicalRecords,
   canAddVitals,
   medicalAids,
@@ -363,10 +364,11 @@ export function PatientChart({
   labResults,
   vitalSigns,
 }: Props) {
-  const medicalAidForm = canAddMedicalAid ? (
+  const medicalAidForm = canManageMedicalAid ? (
     <AddRecord title="medical-aid details">
       <form action={createPatientMedicalAid.bind(null, patientId)} className="grid gap-3 sm:grid-cols-2">
         <InputField label="Medical-aid scheme" name="schemeName" required />
+        <InputField label="Scheme code" name="schemeCode" />
         <InputField label="Plan" name="planName" />
         <InputField label="Membership number" name="membershipNumber" required />
         <InputField label="Dependant code" name="dependantCode" />
@@ -375,10 +377,9 @@ export function PatientChart({
         <InputField label="Pre-authorization number" name="preAuthorizationNumber" />
         <InputField label="Valid from" name="validFrom" type="date" />
         <InputField label="Valid through" name="validThrough" type="date" />
-        <Field label="Primary cover" className="flex items-center gap-2 self-end pb-3">
-          <input type="checkbox" name="isPrimary" defaultChecked className="size-4 accent-[#397f99]" />
-          Mark as primary medical aid
-        </Field>
+        <p className="self-end pb-3 text-xs font-normal text-slate-500">
+          New cover is saved as not primary. Use “Make primary” after saving to switch cover.
+        </p>
         <NotesField />
         <div className="sm:col-span-2"><SubmitButton>Add cover</SubmitButton></div>
       </form>
@@ -495,14 +496,29 @@ export function PatientChart({
       <div className="grid gap-4 lg:grid-cols-3">
         {showMedicalAid && (
           <ChartSection title="Medical-aid details" count={medicalAids.length} icon={ShieldPlus} addForm={medicalAidForm}>
+            <p className="px-4 pt-4 text-xs text-slate-500 sm:px-5">
+              Switching primary cover keeps earlier cover records and does not change existing claims.
+            </p>
             {medicalAids.length === 0 ? <EmptyRecords text="No medical-aid cover recorded yet." /> : medicalAids.map((record) => (
               <div key={record.id} className="px-4 py-4 sm:px-5">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="font-semibold text-slate-800 dark:text-slate-200">{record.schemeName}{record.planName ? ` · ${record.planName}` : ""}</p>
+                    {record.schemeCode && <p className="mt-1 text-xs text-slate-500">Scheme code {record.schemeCode}</p>}
                     <p className="mt-1 text-xs text-slate-500">Membership {record.membershipNumber}{record.dependantCode ? ` · Dependant ${record.dependantCode}` : ""}</p>
                   </div>
-                  {record.isPrimary && <span className="rounded-full bg-sky-50 px-2 py-1 text-[10px] font-bold text-sky-700 dark:bg-sky-950 dark:text-sky-300">Primary</span>}
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${record.isPrimary ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300" : "bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300"}`}>
+                      {record.isPrimary ? "Primary" : "Not primary"}
+                    </span>
+                    {canManageMedicalAid && !record.isPrimary && (
+                      <form action={switchPatientMedicalAid.bind(null, patientId, record.id)}>
+                        <button type="submit" className="text-xs font-semibold text-[#397f99] hover:underline">
+                          Make primary
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 </div>
                 <p className="mt-2 text-xs text-slate-500">{record.principalMemberName ?? "Principal member not recorded"}{record.relationshipToPrincipal ? ` · ${record.relationshipToPrincipal}` : ""}</p>
                 <p className="mt-1 text-xs text-slate-400">Cover {formatDate(record.validFrom)} to {formatDate(record.validThrough)}{record.preAuthorizationNumber ? ` · Pre-auth ${record.preAuthorizationNumber}` : ""}</p>

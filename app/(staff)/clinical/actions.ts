@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { ObservationType, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -167,4 +168,56 @@ export async function createEncounter(formData: FormData) {
   revalidatePath("/clinical");
   revalidatePath(`/patients/${patientId}`);
   redirect("/clinical");
+}
+
+export async function completeEncounter(formData: FormData) {
+  const session = await requirePermission("encounter:update");
+  const encounterId = text(formData, "encounterId");
+  if (!encounterId) throw new Error("Encounter is required.");
+
+  const encounter = await prisma.encounter.findFirst({
+    where: {
+      id: encounterId,
+      practiceId: session.practiceId,
+      ...(session.role === "PRACTITIONER" ? { practitionerId: session.userId } : {}),
+    },
+    select: { id: true, patientId: true, status: true, chiefComplaint: true, diagnosis: true, notes: true },
+  });
+  if (!encounter) throw new Error("Encounter not found in this practice.");
+  if (encounter.status !== "IN_PROGRESS") {
+    throw new Error("Only an in-progress encounter can be completed.");
+  }
+
+  const signedAt = new Date();
+  const lockedHash = createHash("sha256")
+    .update(JSON.stringify({
+      id: encounter.id,
+      chiefComplaint: encounter.chiefComplaint,
+      diagnosis: encounter.diagnosis,
+      notes: encounter.notes,
+    }))
+    .digest("hex");
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.encounter.updateMany({
+      where: { id: encounter.id, practiceId: session.practiceId, status: "IN_PROGRESS" },
+      data: { status: "COMPLETED", endedAt: signedAt, signedAt, lockedHash },
+    });
+    if (updated.count !== 1) throw new Error("Encounter changed. Refresh and try again.");
+
+    await tx.auditLog.create({
+      data: {
+        practiceId: session.practiceId,
+        actorId: session.userId,
+        actorType: "STAFF",
+        action: "UPDATE",
+        resourceType: "ENCOUNTER",
+        resourceId: encounter.id,
+        metadata: { operation: "SIGN_AND_COMPLETE", lockedHash },
+      },
+    });
+  });
+
+  revalidatePath("/clinical");
+  revalidatePath(`/patients/${encounter.patientId}`);
 }
