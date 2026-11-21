@@ -224,7 +224,7 @@ export default function Home() {
 
       <footer className="border-t border-slate-200 px-6 py-7 dark:border-white/10 sm:px-12">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:text-slate-400">
-          <span className="font-montserrat font-bold text-slate-700 dark:text-slate-200">Medi<span className="text-[#397f99]">Core</span></span>
+          <span className="font-serif font-bold text-slate-700 dark:text-slate-200">Medi<span className="text-[#397f99]">Core</span></span>
           <span>Connected care, built around your patients.</span>
           <Link href="/sign-in" className="font-semibold text-[#397f99] hover:underline">Sign in</Link>
         </div>

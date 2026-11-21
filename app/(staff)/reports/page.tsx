@@ -401,11 +401,11 @@ export default async function ReportsPage({
       <form className="mt-6 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-end dark:border-slate-800 dark:bg-slate-950">
         <label className="grid gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
           From
-          <input type="date" name="from" value={from} max={to} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+          <input type="date" name="from" defaultValue={from} max={to} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
         </label>
         <label className="grid gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
           To
-          <input type="date" name="to" value={to} min={from} max={todayKey} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+          <input type="date" name="to" defaultValue={to} min={from} max={todayKey} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
         </label>
         <button type="submit" className="h-10 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white">
           Update reports

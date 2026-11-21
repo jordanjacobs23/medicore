@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { Inter } from "next/font/google";
-import { cn } from "@/lib/utils";
 import Navbar from "@/components/navigation/navbar";
 import { ThemeProvider } from "@/components/ThemeProvider"
 import { ClerkProvider } from "@clerk/nextjs";
@@ -11,12 +9,10 @@ import { SessionTimeout } from "@/components/session-timeout";
 import { Toaster } from "@/components/ui/toast";
 
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
-
-const MontserratVF = localFont({
+const montserrat = localFont({
   src: "./fonts/MontserratVF.ttf",
-  variable: "--font-montserrat",
-  weight: "100 200 300 400 500 700 800 900"
+  variable: "--font-montserrat-local",
+  weight: "100 900",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +26,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
+      <html lang="en" className={montserrat.variable} suppressHydrationWarning>
         <body>
           <ThemeProvider
             attribute="class"

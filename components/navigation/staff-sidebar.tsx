@@ -85,7 +85,7 @@ function StaffSidebar({
         </button>
       </div>
 
-      <nav id="staff-navigation" className={`flex-1 pt-1 ${collapsed ? "px-3" : "px-3 lg:px-5"}`} aria-label="Staff navigation">
+      <nav id="staff-navigation" className={`min-h-0 flex-1 overflow-y-auto pt-1 ${collapsed ? "px-3" : "px-3 lg:px-5"}`} aria-label="Staff navigation">
         <div className="space-y-2">
           {links.map((link) => {
             const Icon = icons[link.href as keyof typeof icons] ?? LayoutDashboard;
