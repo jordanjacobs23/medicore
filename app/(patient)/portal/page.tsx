@@ -2,7 +2,7 @@ import { requirePatientSelfAccess } from "@/lib/authorization/require-permission
 import { getSessionContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { CalendarDays, CalendarPlus, FileText, MessageSquare, ReceiptText } from "lucide-react";
+import { CalendarDays, CalendarPlus, FileBadge2, FileText, MessageSquare, Microscope, ReceiptText, ShieldCheck, UserRound } from "lucide-react";
 
 export default async function PatientPortalPage() {
   const session = await getSessionContext();
@@ -67,6 +67,22 @@ export default async function PatientPortalPage() {
           <FileText className="size-5 text-[#397f99]" />
           <p className="mt-3 font-semibold">Documents</p>
         </Link>
+        <Link href="/portal/results" className="rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
+          <Microscope className="size-5 text-[#397f99]" />
+          <p className="mt-3 font-semibold">Released Lab Results</p>
+        </Link>
+        <Link href="/portal/tax-certificates" className="rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
+          <FileBadge2 className="size-5 text-[#397f99]" />
+          <p className="mt-3 font-semibold">Tax Certificates</p>
+        </Link>
+        <Link href="/portal/profile" className="rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
+          <UserRound className="size-5 text-[#397f99]" />
+          <p className="mt-3 font-semibold">Profile</p>
+        </Link>
+        <Link href="/portal/privacy" className="rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
+          <ShieldCheck className="size-5 text-[#397f99]" />
+          <p className="mt-3 font-semibold">Privacy and Records</p>
+        </Link>
         <Link href="/portal/messages" className="relative rounded-xl border border-slate-200 p-5 transition hover:border-[#397f99]">
           <MessageSquare className="size-5 text-[#397f99]" />
           <p className="mt-3 font-semibold">Messages</p>
@@ -123,6 +139,7 @@ export default async function PatientPortalPage() {
                   <p className="mt-2 text-xs text-slate-400">
                     Prescribed by {prescription.practitioner.firstName} {prescription.practitioner.lastName} on {prescription.createdAt.toLocaleDateString()}. This is an electronic record and was not sent to a pharmacy.
                   </p>
+                  <a href={`/api/portal/prescriptions/${prescription.id}`} className="mt-3 inline-flex h-8 items-center rounded-md border border-slate-200 px-3 text-xs font-semibold text-[#397f99] hover:border-[#397f99] dark:border-slate-700">Download prescription PDF</a>
                 </div>
               </li>
             ))}

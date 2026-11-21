@@ -6,6 +6,7 @@ import {
   ImmunizationStatus,
   LabResultStatus,
   MedicationStatus,
+  PatientCorrectionRequestStatus,
   PatientConditionStatus,
   Prisma,
   VitalSignKind,
@@ -354,6 +355,16 @@ export async function createLabResult(patientId: string, formData: FormData) {
   if (!testName || !resultValue) {
     throw new Error("Test name and result are required.");
   }
+  const status = enumValue(
+    text(formData, "status"),
+    Object.values(LabResultStatus),
+    "lab result status",
+    LabResultStatus.FINAL,
+  );
+  const releaseToPatient = formData.get("releaseToPatient") === "on";
+  if (releaseToPatient && ![LabResultStatus.FINAL, LabResultStatus.AMENDED, LabResultStatus.CORRECTED].includes(status)) {
+    throw new Error("Only final, amended, or corrected results can be released to the patient portal.");
+  }
 
   await createChartRecord(patientId, clinicalChartPermissions, "LAB_RESULT", (tx, staffId) =>
     tx.labResult.create({
@@ -367,19 +378,103 @@ export async function createLabResult(patientId: string, formData: FormData) {
         unit: text(formData, "unit") || null,
         referenceRange: text(formData, "referenceRange") || null,
         interpretation: text(formData, "interpretation") || null,
-        status: enumValue(
-          text(formData, "status"),
-          Object.values(LabResultStatus),
-          "lab result status",
-          LabResultStatus.FINAL,
-        ),
+        status,
         collectedAt: optionalDateTime(formData, "collectedAt", "collection date"),
         resultAt: optionalDateTime(formData, "resultAt", "result date") ?? new Date(),
+        releasedAt: releaseToPatient ? new Date() : null,
         notes: text(formData, "notes") || null,
         recordedById: staffId,
       },
     }),
   );
+}
+
+export async function updateLabResultRelease(patientId: string, resultId: string, formData: FormData) {
+  const session = await getSessionContext();
+  if (
+    !session ||
+    session.userType !== "STAFF" ||
+    !clinicalChartPermissions.some((permission) => hasPermission(session.role, permission))
+  ) {
+    forbidden();
+  }
+  await requirePractitionerPatientAccess(patientId);
+  const patient = await prisma.patient.findFirst({
+    where: { id: patientId, practiceId: session.practiceId },
+    select: { id: true },
+  });
+  if (!patient) throw new Error("Patient not found in this practice.");
+  const result = await prisma.labResult.findFirst({
+    where: { id: resultId, patientId: patient.id },
+    select: { id: true, status: true, releasedAt: true },
+  });
+  if (!result) throw new Error("Lab result not found for this patient.");
+
+  const release = formData.get("released") === "yes";
+  if (release && ![LabResultStatus.FINAL, LabResultStatus.AMENDED, LabResultStatus.CORRECTED].includes(result.status)) {
+    throw new Error("Only final, amended, or corrected results can be released to the patient portal.");
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.labResult.update({ where: { id: result.id }, data: { releasedAt: release ? result.releasedAt ?? new Date() : null } });
+    await tx.auditLog.create({
+      data: {
+        practiceId: session.practiceId,
+        actorId: session.userId,
+        actorType: "STAFF",
+        action: "UPDATE",
+        resourceType: "LAB_RESULT_RELEASE",
+        resourceId: result.id,
+        metadata: { releasedToPatient: release },
+      },
+    });
+  });
+  revalidatePath(`/patients/${patientId}`);
+  revalidatePath("/portal/results");
+  revalidatePath("/portal");
+}
+
+export async function updatePatientCorrectionRequestStatus(requestId: string, formData: FormData) {
+  const session = await getSessionContext();
+  if (!session || session.userType !== "STAFF" || !hasPermission(session.role, "patient:update")) {
+    forbidden();
+  }
+  const status = enumValue(
+    text(formData, "status"),
+    Object.values(PatientCorrectionRequestStatus),
+    "request status",
+  );
+  const reviewNote = text(formData, "reviewNote");
+  if (reviewNote.length > 1000) throw new Error("Practice responses must be 1000 characters or fewer.");
+  const request = await prisma.patientCorrectionRequest.findFirst({
+    where: { id: requestId, practiceId: session.practiceId },
+    select: { id: true, patientId: true },
+  });
+  if (!request) throw new Error("Correction request not found in this practice.");
+  await requirePractitionerPatientAccess(request.patientId);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.patientCorrectionRequest.update({
+      where: { id: request.id },
+      data: {
+        status,
+        reviewNote: reviewNote || null,
+        reviewedAt: status === PatientCorrectionRequestStatus.PENDING ? null : new Date(),
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        practiceId: session.practiceId,
+        actorId: session.userId,
+        actorType: "STAFF",
+        action: "UPDATE",
+        resourceType: "PATIENT_CORRECTION_REQUEST",
+        resourceId: request.id,
+        metadata: { status },
+      },
+    });
+  });
+  revalidatePath(`/patients/${request.patientId}`);
+  revalidatePath("/portal/privacy");
 }
 
 export async function createVitalSign(patientId: string, formData: FormData) {

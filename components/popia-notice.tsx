@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { acceptPopiaNotice } from "@/app/(patient)/portal/privacy-actions";
 
 export function PopiaNotice({
@@ -10,6 +11,7 @@ export function PopiaNotice({
   open: boolean;
   noticeVersion: string;
 }) {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -20,6 +22,7 @@ export function PopiaNotice({
     setError("");
     try {
       await acceptPopiaNotice(noticeVersion);
+      router.refresh();
     } catch {
       setError("We could not record your acknowledgement. Please try again.");
       setSubmitting(false);

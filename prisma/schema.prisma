@@ -8,23 +8,24 @@ datasource db {
 }
 
 model Practice {
-  id                    String                 @id @default(cuid())
-  clerkOrgId            String                 @unique
-  name                  String
-  timeZone              String                 @default("Africa/Johannesburg")
-  patients              Patient[]
-  staff                 Staff[]
-  appointments          Appointment[]
-  practitionerSchedules PractitionerSchedule[]
-  encounters            Encounter[]
-  invoices              Invoice[]
-  payments              Payment[]
-  claims                Claim[]
-  documents             PatientDocument[]
-  portalMessages        PortalMessage[]
-  auditLogs             AuditLog[]
-  patientConsents       PatientConsent[]
-  breakGlassRequests    BreakGlassRequest[]
+  id                        String                     @id @default(cuid())
+  clerkOrgId                String                     @unique
+  name                      String
+  timeZone                  String                     @default("Africa/Johannesburg")
+  patients                  Patient[]
+  staff                     Staff[]
+  appointments              Appointment[]
+  practitionerSchedules     PractitionerSchedule[]
+  encounters                Encounter[]
+  invoices                  Invoice[]
+  payments                  Payment[]
+  claims                    Claim[]
+  documents                 PatientDocument[]
+  portalMessages            PortalMessage[]
+  auditLogs                 AuditLog[]
+  patientConsents           PatientConsent[]
+  patientCorrectionRequests PatientCorrectionRequest[]
+  breakGlassRequests        BreakGlassRequest[]
 }
 
 model Staff {
@@ -60,19 +61,19 @@ model Staff {
 }
 
 model Patient {
-  id                           String                @id @default(cuid())
-  clerkId                      String?               @unique
-  clerkInvitationId            String?               @unique
+  id                           String                     @id @default(cuid())
+  clerkId                      String?                    @unique
+  clerkInvitationId            String?                    @unique
   practiceId                   String
   email                        String
   firstName                    String
   lastName                     String
   preferredName                String?
-  dateOfBirth                  DateTime?             @db.Date
+  dateOfBirth                  DateTime?                  @db.Date
   sexAtBirth                   PatientSexAtBirth?
   genderIdentity               String?
   phone                        String?
-  smsRemindersEnabled          Boolean               @default(false)
+  smsRemindersEnabled          Boolean                    @default(false)
   alternatePhone               String?
   addressLine1                 String?
   addressLine2                 String?
@@ -85,7 +86,7 @@ model Patient {
   emergencyContactName         String?
   emergencyContactRelationship String?
   emergencyContactPhone        String?
-  practice                     Practice              @relation(fields: [practiceId], references: [id])
+  practice                     Practice                   @relation(fields: [practiceId], references: [id])
   appointments                 Appointment[]
   encounters                   Encounter[]
   prescriptions                Prescription[]
@@ -102,9 +103,10 @@ model Patient {
   payments                     Payment[]
   claims                       Claim[]
   documents                    PatientDocument[]
-  messages                     PortalMessage[]       @relation("PortalMessagePatientSubject")
-  sentMessages                 PortalMessage[]       @relation("PortalMessagePatientSender")
+  messages                     PortalMessage[]            @relation("PortalMessagePatientSubject")
+  sentMessages                 PortalMessage[]            @relation("PortalMessagePatientSender")
   consents                     PatientConsent[]
+  correctionRequests           PatientCorrectionRequest[]
   breakGlassRequests           BreakGlassRequest[]
 }
 
@@ -406,6 +408,7 @@ model LabResult {
   status         LabResultStatus @default(FINAL)
   collectedAt    DateTime?
   resultAt       DateTime        @default(now())
+  releasedAt     DateTime?
   notes          String?
 
   patient    Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
@@ -750,6 +753,13 @@ enum LabResultStatus {
   CANCELLED
 }
 
+enum PatientCorrectionRequestStatus {
+  PENDING
+  IN_REVIEW
+  COMPLETED
+  DECLINED
+}
+
 enum VitalSignKind {
   BLOOD_PRESSURE
   HEART_RATE
@@ -777,6 +787,24 @@ model PatientConsent {
 
   @@unique([practiceId, patientId, noticeVersion])
   @@index([patientId, acceptedAt])
+}
+
+model PatientCorrectionRequest {
+  id               String                         @id @default(cuid())
+  practiceId       String
+  patientId        String
+  requestedFields  String
+  requestedChanges String
+  status           PatientCorrectionRequestStatus @default(PENDING)
+  reviewNote       String?
+  reviewedAt       DateTime?
+  createdAt        DateTime                       @default(now())
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+  patient  Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([practiceId, status, createdAt])
+  @@index([patientId, createdAt])
 }
 
 model BreakGlassRequest {

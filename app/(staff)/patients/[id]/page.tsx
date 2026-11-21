@@ -1,3 +1,4 @@
+import { PatientCorrectionRequestStatus } from "@prisma/client";
 import {
   requirePermission,
   requirePractitionerPatientAccess,
@@ -10,6 +11,7 @@ import { PatientAccountLink } from "@/components/patient-account-link";
 import { PatientChart } from "@/components/patient-chart";
 import { cancelPrescription } from "../../clinical/prescriptions/actions";
 import { completeEncounter } from "../../clinical/actions";
+import { updatePatientCorrectionRequestStatus } from "../chart-actions";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -89,6 +91,13 @@ export default async function PatientDetailPage({
       : undefined,
   });
 
+  const correctionRequestsPromise = canUpdatePatient
+    ? prisma.patientCorrectionRequest.findMany({
+        where: { practiceId: session.practiceId, patientId: patient.id },
+        orderBy: { createdAt: "desc" },
+      })
+    : Promise.resolve([]);
+
   const [appointments, encounters, prescriptions, counts] = await Promise.all([
     canReadAppointments
       ? prisma.appointment.findMany({
@@ -158,6 +167,7 @@ export default async function PatientDetailPage({
         : Promise.resolve(0),
     ]),
   ]);
+  const correctionRequests = await correctionRequestsPromise;
 
   const [
     medicalAids,
@@ -511,6 +521,37 @@ export default async function PatientDetailPage({
               />
             </div>
           )}
+          {canUpdatePatient && correctionRequests.length > 0 ? (
+            <section className="mt-5 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+              <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">Patient correction requests</h2>
+                <p className="mt-1 text-xs text-slate-500">Review the patient-submitted requests and update their status and response.</p>
+              </div>
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {correctionRequests.map((request) => (
+                  <article key={request.id} className="space-y-3 px-5 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-semibold text-slate-800 dark:text-slate-200">{request.requestedFields}</p>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{request.status.replaceAll("_", " ")}</span>
+                    </div>
+                    <p className="whitespace-pre-wrap text-sm text-slate-600 dark:text-slate-300">{request.requestedChanges}</p>
+                    <p className="text-xs text-slate-400">Received {formatDate(request.createdAt)}</p>
+                    <form action={updatePatientCorrectionRequestStatus.bind(null, request.id)} className="grid gap-3 sm:grid-cols-[180px_1fr_auto] sm:items-end">
+                      <label className="text-xs font-semibold text-slate-500">Status
+                        <select name="status" defaultValue={request.status} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950">
+                          {Object.values(PatientCorrectionRequestStatus).map((status) => <option key={status} value={status}>{status.replaceAll("_", " ")}</option>)}
+                        </select>
+                      </label>
+                      <label className="text-xs font-semibold text-slate-500">Response to patient
+                        <input name="reviewNote" defaultValue={request.reviewNote ?? ""} maxLength={1000} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950" placeholder="Optional update or explanation" />
+                      </label>
+                      <button type="submit" className="h-10 rounded-lg bg-[#397f99] px-4 text-sm font-bold text-white">Save response</button>
+                    </form>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
         </div>
       </section>
     </main>

@@ -38,6 +38,7 @@ import {
   createPatientCondition,
   createPatientMedicalAid,
   createVitalSign,
+  updateLabResultRelease,
   switchPatientMedicalAid,
 } from "@/app/(staff)/patients/chart-actions";
 
@@ -482,6 +483,12 @@ export function PatientChart({
         <InputField label="Code system" name="codeSystem" />
         <InputField label="Code" name="code" />
         <NotesField />
+        <div className="sm:col-span-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+          <label className="flex items-start gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+            <input type="checkbox" name="releaseToPatient" className="mt-0.5 size-4 accent-[#397f99]" />
+            <span>Release this result to the patient portal after saving. Only final, amended, or corrected results are eligible.</span>
+          </label>
+        </div>
         <div className="sm:col-span-2"><SubmitButton>Add lab result</SubmitButton></div>
       </form>
     </AddRecord>
@@ -612,6 +619,10 @@ export function PatientChart({
                   <p className="mt-1 text-xs text-slate-400">{record.codeSystem && record.code ? `${record.codeSystem} ${record.code} · ` : ""}{formatDateTime(record.resultAt)}{record.referenceRange ? ` · Reference ${record.referenceRange}` : ""}</p>
                   {record.interpretation && <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{record.interpretation}</p>}
                   {record.notes && <p className="mt-1 text-xs text-slate-500">{record.notes}</p>}
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <p className="text-[11px] font-semibold text-slate-500">{record.releasedAt ? `Released to portal ${formatDateTime(record.releasedAt)}` : "Not released to portal"}</p>
+                    {canAddClinicalRecords && (record.status === LabResultStatus.FINAL || record.status === LabResultStatus.AMENDED || record.status === LabResultStatus.CORRECTED) ? <form action={updateLabResultRelease.bind(null, patientId, record.id)}><input type="hidden" name="released" value={record.releasedAt ? "no" : "yes"} /><button type="submit" className="text-xs font-semibold text-[#397f99] hover:underline">{record.releasedAt ? "Remove from portal" : "Release to portal"}</button></form> : null}
+                  </div>
                 </div>
               ))}
             </ChartSection>

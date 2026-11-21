@@ -1,7 +1,9 @@
 "use server";
 
 import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { PatientCorrectionRequestStatus, PortalMessageSender } from "@prisma/client";
 import { getSessionContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { logSensitiveRecordAccess } from "@/lib/audit";
@@ -41,5 +43,58 @@ export async function acceptPopiaNotice(noticeVersion: string) {
     metadata: { noticeVersion },
   });
 
-  redirect("/portal");
+  revalidatePath("/portal");
+}
+
+export async function submitCorrectionRequest(formData: FormData) {
+  const session = await getSessionContext();
+  if (!session || session.userType !== "PATIENT") {
+    throw new Error("A patient session is required.");
+  }
+  const requestedFields = String(formData.get("requestedFields") ?? "").trim();
+  const requestedChanges = String(formData.get("requestedChanges") ?? "").trim();
+  if (!requestedFields || requestedFields.length > 250) {
+    throw new Error("List the records or fields you want corrected (250 characters maximum).");
+  }
+  if (!requestedChanges || requestedChanges.length > 3500) {
+    throw new Error("Describe the correction you are requesting (3500 characters maximum).");
+  }
+
+  const messageBody = `Patient correction request\nRecords or fields: ${requestedFields}\n\nRequested correction:\n${requestedChanges}`;
+  await prisma.$transaction(async (tx) => {
+    const correctionRequest = await tx.patientCorrectionRequest.create({
+      data: {
+        practiceId: session.practiceId,
+        patientId: session.userId,
+        requestedFields,
+        requestedChanges,
+        status: PatientCorrectionRequestStatus.PENDING,
+      },
+      select: { id: true },
+    });
+    await tx.portalMessage.create({
+      data: {
+        practiceId: session.practiceId,
+        patientId: session.userId,
+        senderPatientId: session.userId,
+        senderType: PortalMessageSender.PATIENT,
+        body: messageBody,
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        practiceId: session.practiceId,
+        actorId: session.userId,
+        actorType: "PATIENT",
+        action: "CREATE",
+        resourceType: "PATIENT_CORRECTION_REQUEST",
+        resourceId: correctionRequest.id,
+      },
+    });
+  });
+
+  revalidatePath("/portal/privacy");
+  revalidatePath("/portal/messages");
+  revalidatePath("/messages");
+  redirect("/portal/privacy?request=submitted");
 }
