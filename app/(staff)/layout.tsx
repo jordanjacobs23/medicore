@@ -1,7 +1,7 @@
 import { forbidden, redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/auth/session";
 import { Suspense } from "react";
-import { StaffSidebar } from "@/components/navigation/staff-sidebar";
+import { StaffSidebarShell } from "@/components/navigation/staff-sidebar";
 import { prisma } from "@/lib/prisma";
 
 async function StaffContent({
@@ -49,10 +49,7 @@ async function StaffContent({
 
   return (
     <>
-      <StaffSidebar links={links} />
-      <div className="min-h-screen w-auto bg-[#edf2f6] md:ml-20 lg:ml-[270px] dark:bg-[#111a22]">
-        {children}
-      </div>
+      <StaffSidebarShell links={links}>{children}</StaffSidebarShell>
     </>
   );
 }
