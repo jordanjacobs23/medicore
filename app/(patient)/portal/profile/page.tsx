@@ -3,6 +3,7 @@ import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { getSessionContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { updatePatientProfile } from "./actions";
+import { ProfileSavedToast } from "./profile-saved-toast";
 
 const inputClass = "mt-1.5 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950";
 
@@ -10,7 +11,7 @@ function ProfileField({ label, name, value, type = "text" }: { label: string; na
   return (
     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
       {label}
-      <input className={inputClass} name={name} type={type} defaultValue={value ?? ""} />
+      <input id={name} className={inputClass} name={name} type={type} defaultValue={value ?? ""} />
     </label>
   );
 }
@@ -42,24 +43,24 @@ export default async function PatientProfilePage({ searchParams }: { searchParam
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 pb-12 pt-10 sm:px-6">
       <Link href="/portal" className="mt-15 inline-flex items-center gap-2 text-sm font-semibold text-[#397f99]"><ArrowLeft className="size-4" />Back to portal</Link>
       <div className="mt-4">
-        <h1 className="font-montserrat text-3xl font-bold text-slate-950 dark:text-white">Profile and consent</h1>
+        <h1 className="font-montserrat text-3xl font-bold text-slate-950 dark:text-white">Profile and Consent</h1>
         <p className="mt-2 text-sm text-slate-500">Keep your contact and emergency details current, and manage optional SMS reminders.</p>
       </div>
-      {updated ? <p role="status" className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">Your profile and preferences have been saved.</p> : null}
+      <ProfileSavedToast show={updated === "1"} />
 
       <form action={updatePatientProfile} className="mt-6 space-y-5">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 sm:p-6">
           <h2 className="font-bold text-slate-950 dark:text-white">Account details</h2>
           <p className="mt-1 text-sm text-slate-500">For changes to your legal name, email, or date of birth, send a correction request to your practice.</p>
           <dl className="mt-4 grid gap-4 sm:grid-cols-3">
-            <div><dt className="text-xs font-semibold text-slate-500">Name on account</dt><dd className="mt-1 text-sm font-medium">{patient.firstName} {patient.lastName}</dd></div>
+            <div><dt className="text-xs font-semibold text-slate-500">Name on Account</dt><dd className="mt-1 text-sm font-medium">{patient.firstName} {patient.lastName}</dd></div>
             <div><dt className="text-xs font-semibold text-slate-500">Email</dt><dd className="mt-1 break-all text-sm font-medium">{patient.email}</dd></div>
-            <div><dt className="text-xs font-semibold text-slate-500">Date of birth</dt><dd className="mt-1 text-sm font-medium">{patient.dateOfBirth?.toLocaleDateString("en-ZA") ?? "Not recorded"}</dd></div>
+            <div><dt className="text-xs font-semibold text-slate-500">Date of Birth</dt><dd className="mt-1 text-sm font-medium">{patient.dateOfBirth?.toLocaleDateString("en-ZA") ?? "Not recorded"}</dd></div>
           </dl>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 sm:p-6">
-          <h2 className="font-bold text-slate-950 dark:text-white">Contact and address</h2>
+          <h2 className="font-bold text-slate-950 dark:text-white">Contact and Address</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <ProfileField label="Preferred name" name="preferredName" value={patient.preferredName} />
             <ProfileField label="Mobile phone" name="phone" value={patient.phone} type="tel" />
@@ -76,7 +77,7 @@ export default async function PatientProfilePage({ searchParams }: { searchParam
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 sm:p-6">
-          <h2 className="font-bold text-slate-950 dark:text-white">Emergency contact</h2>
+          <h2 className="font-bold text-slate-950 dark:text-white">Emergency Contact</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <ProfileField label="Name" name="emergencyContactName" value={patient.emergencyContactName} />
             <ProfileField label="Relationship" name="emergencyContactRelationship" value={patient.emergencyContactRelationship} />
@@ -101,7 +102,7 @@ export default async function PatientProfilePage({ searchParams }: { searchParam
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/portal/privacy" className="text-sm font-semibold text-[#397f99] hover:underline">Privacy requests and records export</Link>
-          <button type="submit" className="inline-flex h-11 items-center justify-center rounded-lg bg-[#397f99] px-5 text-sm font-bold text-white">Save profile and consent</button>
+          <button type="submit" className="inline-flex h-11 items-center justify-center rounded-lg bg-[#397f99] px-5 text-sm font-bold text-white">Save</button>
         </div>
       </form>
     </main>

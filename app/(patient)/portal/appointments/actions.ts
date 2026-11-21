@@ -164,5 +164,5 @@ export async function updateSmsReminderPreference(formData: FormData) {
     }
   });
   revalidatePath("/portal/appointments");
-  redirect("/portal/appointments?reminders=updated");
+  redirect(`/portal/appointments?reminders=${enabled ? "enabled" : "disabled"}`);
 }

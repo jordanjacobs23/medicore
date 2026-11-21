@@ -62,15 +62,15 @@ export default async function PatientAppointmentsPage({
 
       <section className="mt-8">
         <h2 className="font-montserrat text-xl font-bold text-slate-950 dark:text-white">Upcoming</h2>
-        {params.reminders && <p role="status" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">SMS reminder preference saved.</p>}
+        {params.reminders && <p role="status" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">{params.reminders === "enabled" ? "SMS appointment reminders are enabled." : "SMS appointment reminders are turned off."}</p>}
         <form action={updateSmsReminderPreference} className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-950">
           <div>
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">SMS appointment reminders</p>
-            <p className="mt-1 text-xs text-slate-500">{patient.phone?.trim() ? "Sent to the phone number on your patient account. Use international format, including the country code." : "Ask your practice to add a phone number before enabling reminders."}</p>
+            <p className="mt-1 text-xs text-slate-500">{patient.phone?.trim() ? "Sent to the phone number on your patient account. Use international format, including the country code." : <>Add a mobile number in your <Link href="/portal/profile#phone" className="font-semibold text-[#397f99] underline">profile</Link> before enabling reminders.</>}</p>
           </div>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <input type="checkbox" name="smsRemindersEnabled" defaultChecked={patient.smsRemindersEnabled} disabled={!patient.phone?.trim()} className="size-4 accent-[#397f99]" />
+              <input type="checkbox" name="smsRemindersEnabled" defaultChecked={patient.smsRemindersEnabled} disabled={!patient.phone?.trim() && !patient.smsRemindersEnabled} className="size-4 accent-[#397f99] disabled:cursor-not-allowed disabled:opacity-50" />
               Enabled
             </label>
             <button type="submit" className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">Save</button>

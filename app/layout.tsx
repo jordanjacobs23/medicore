@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/ThemeProvider"
 import { ClerkProvider } from "@clerk/nextjs";
 import { Suspense } from "react";
 import { SessionTimeout } from "@/components/session-timeout";
+import { Toaster } from "@/components/ui/toast";
 
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </Suspense>
             <SessionTimeout />
             {children}
+            <Toaster />
           </ThemeProvider>
         </body>
       </html>
