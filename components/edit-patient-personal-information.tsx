@@ -12,6 +12,8 @@ type Props = {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string | null;
+  dateOfBirth: string | null;
 };
 
 export function EditPatientPersonalInformation({
@@ -19,6 +21,8 @@ export function EditPatientPersonalInformation({
   firstName,
   lastName,
   email,
+  phone,
+  dateOfBirth,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const updatePatient = updatePatientPersonalInformation.bind(null, patientId);
@@ -78,6 +82,29 @@ export function EditPatientPersonalInformation({
               className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
           </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1.5 text-xs font-semibold text-slate-500">
+              Phone number
+              <input
+                name="phone"
+                type="tel"
+                autoComplete="tel"
+                defaultValue={phone ?? ""}
+                className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              />
+            </label>
+            <label className="space-y-1.5 text-xs font-semibold text-slate-500">
+              Date of birth
+              <input
+                name="dateOfBirth"
+                type="date"
+                max={new Date().toISOString().slice(0, 10)}
+                autoComplete="bday"
+                defaultValue={dateOfBirth ?? ""}
+                className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              />
+            </label>
+          </div>
 
           {state.error && (
             <p role="alert" className="text-xs font-medium text-red-600">
@@ -115,6 +142,25 @@ export function EditPatientPersonalInformation({
             <dt className="text-xs text-slate-400">Email address</dt>
             <dd className="mt-1 break-all font-medium text-slate-700 dark:text-slate-200">
               {email}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-slate-400">Phone number</dt>
+            <dd className="mt-1 font-medium text-slate-700 dark:text-slate-200">
+              {phone || "Not recorded"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-slate-400">Date of birth</dt>
+            <dd className="mt-1 font-medium text-slate-700 dark:text-slate-200">
+              {dateOfBirth
+                ? new Intl.DateTimeFormat("en", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  }).format(new Date(`${dateOfBirth}T00:00:00.000Z`))
+                : "Not recorded"}
             </dd>
           </div>
           <div>

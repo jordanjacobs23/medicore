@@ -22,15 +22,37 @@ export type PatientAccountLinkState = {
 
 class PatientAccountLinkConflict extends Error {}
 
+function parseDateOfBirth(value: string): Date | null {
+  if (!value) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error("Enter a valid date of birth.");
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== value ||
+    value > new Date().toISOString().slice(0, 10)
+  ) {
+    throw new Error("Enter a valid date of birth.");
+  }
+
+  return date;
+}
+
 export async function createPatient(formData: FormData) {
   const session = await requirePermission("patient:create");
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const phone = String(formData.get("phone") ?? "").trim() || null;
+  const dateOfBirthValue = String(formData.get("dateOfBirth") ?? "").trim();
 
   if (!firstName || !lastName || !email) {
     throw new Error("First name, last name, and email are required.");
   }
+
+  const dateOfBirth = parseDateOfBirth(dateOfBirthValue);
 
   await prisma.patient.create({
     data: {
@@ -39,6 +61,8 @@ export async function createPatient(formData: FormData) {
       firstName,
       lastName,
       email,
+      phone,
+      dateOfBirth,
     },
   });
 
@@ -54,6 +78,8 @@ export async function updatePatientPersonalInformation(
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const phone = String(formData.get("phone") ?? "").trim() || null;
+  const dateOfBirthValue = String(formData.get("dateOfBirth") ?? "").trim();
 
   if (!firstName || !lastName || !email) {
     return { success: null, error: "First name, last name, and email are required." };
@@ -63,9 +89,19 @@ export async function updatePatientPersonalInformation(
     return { success: null, error: "Enter a valid email address." };
   }
 
+  let dateOfBirth: Date | null;
+  try {
+    dateOfBirth = parseDateOfBirth(dateOfBirthValue);
+  } catch (error) {
+    if (error instanceof Error) {
+      return { success: null, error: error.message };
+    }
+    throw error;
+  }
+
   const result = await prisma.patient.updateMany({
     where: { id: patientId, practiceId: session.practiceId },
-    data: { firstName, lastName, email },
+    data: { firstName, lastName, email, phone, dateOfBirth },
   });
 
   if (result.count !== 1) {

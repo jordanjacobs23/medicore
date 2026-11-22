@@ -3,6 +3,7 @@ import Link from "next/link"
 import Theme from "./Theme"
 import { Show } from "@clerk/nextjs"
 import { AccountMenu } from "./AccountMenu"
+import { LogInIcon, LogOutIcon } from "lucide-react"
 
 const Navbar = async () => {
   return (
@@ -23,8 +24,9 @@ const Navbar = async () => {
         <>
           <Link
             href="/sign-in"
-            className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="inline-flex h-9 items-center gap-1.5 justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
+            <LogInIcon className="size-4" />
             Sign in
           </Link>
           <Theme />

@@ -19,7 +19,12 @@ async function StaffContent({
     forbidden();
   }
 
-  const links = [
+  const links: {
+    href: string;
+    label: string;
+    badgeCount?: number;
+    children?: { href: string; label: string }[];
+  }[] = [
     { href: "/calendar", label: "Calendar" },
     { href: "/patients", label: "Patients" },
     { href: "/messages", label: "Messages", badgeCount: await prisma.portalMessage.count({
@@ -42,8 +47,14 @@ async function StaffContent({
   }
   links.push({ href: "/break-glass", label: "Break-glass" });
   if (session.role === "PRACTICE_MANAGER") {
-    links.push({ href: "/practice/staff", label: "Practice" });
-    links.push({ href: "/practice/schedules", label: "Schedules" });
+    links.push({
+      href: "/practice",
+      label: "Practice",
+      children: [
+        { href: "/practice/staff", label: "Staff Directory" },
+        { href: "/practice/schedules", label: "Practitioner Schedules" },
+      ],
+    });
     links.push({ href: "/practice/settings", label: "Settings" });
   }
 

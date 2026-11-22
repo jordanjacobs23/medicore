@@ -20,6 +20,7 @@ import {
   ChevronRight,
   ClipboardPlus,
   Mail,
+  MessageSquare,
   Pill,
   Stethoscope,
 } from "lucide-react";
@@ -29,6 +30,14 @@ const formatDate = (date: Date) =>
     day: "2-digit",
     month: "short",
     year: "numeric",
+  }).format(date);
+
+const formatDateOnly = (date: Date) =>
+  new Intl.DateTimeFormat("en", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
   }).format(date);
 
 export default async function PatientDetailPage({
@@ -273,8 +282,16 @@ export default async function PatientDetailPage({
               </div>
             </div>
             <div className="flex flex-wrap gap-2 pb-1">
+              <Link
+                href={`/messages/${patient.id}`}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-[#397f99] hover:text-[#397f99] dark:border-slate-700 dark:text-slate-200"
+              >
+                <MessageSquare className="size-4" />
+                Message
+              </Link>
               <a
-                href={`mailto:${patient.email}`}
+                href={`mailto:${patient.email}?subject=${encodeURIComponent("Message from your practice")}`}
+                aria-label={`Email ${patient.firstName} ${patient.lastName}`}
                 className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-[#397f99] hover:text-[#397f99] dark:border-slate-700 dark:text-slate-200"
               >
                 <Mail className="size-4" />
@@ -309,6 +326,8 @@ export default async function PatientDetailPage({
               firstName={patient.firstName}
               lastName={patient.lastName}
               email={patient.email}
+              phone={patient.phone}
+              dateOfBirth={patient.dateOfBirth?.toISOString().slice(0, 10) ?? null}
             />
           ) : (
             <article className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
@@ -320,6 +339,20 @@ export default async function PatientDetailPage({
                   <dt className="text-xs text-slate-400">Email address</dt>
                   <dd className="mt-1 break-all font-medium text-slate-700 dark:text-slate-200">
                     {patient.email}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-400">Phone number</dt>
+                  <dd className="mt-1 font-medium text-slate-700 dark:text-slate-200">
+                    {patient.phone || "Not recorded"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-400">Date of birth</dt>
+                  <dd className="mt-1 font-medium text-slate-700 dark:text-slate-200">
+                    {patient.dateOfBirth
+                      ? formatDateOnly(patient.dateOfBirth)
+                      : "Not recorded"}
                   </dd>
                 </div>
                 <div>
@@ -501,26 +534,6 @@ export default async function PatientDetailPage({
             </article>
           </div>
 
-          {(canReadMedicalAid || canReadClinicalChart) && (
-            <div className="lg:-ml-[340px] lg:w-[calc(100%_+_340px)]">
-              <PatientChart
-                patientId={patient.id}
-                showMedicalAid={canReadMedicalAid}
-                showClinicalRecords={canReadClinicalChart}
-                canManageMedicalAid={canManageMedicalAid}
-                canAddClinicalRecords={canAddClinicalRecords}
-                canAddVitals={canAddVitals}
-                medicalAids={medicalAids}
-                conditions={conditions}
-                allergies={allergies}
-                medicationHistory={medicationHistory}
-                immunizations={immunizations}
-                familyHistory={familyHistory}
-                labResults={labResults}
-                vitalSigns={vitalSigns}
-              />
-            </div>
-          )}
           {canUpdatePatient && correctionRequests.length > 0 ? (
             <section className="mt-5 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
               <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
@@ -554,6 +567,26 @@ export default async function PatientDetailPage({
           ) : null}
         </div>
       </section>
+      {(canReadMedicalAid || canReadClinicalChart) && (
+        <section className="mt-5">
+          <PatientChart
+            patientId={patient.id}
+            showMedicalAid={canReadMedicalAid}
+            showClinicalRecords={canReadClinicalChart}
+            canManageMedicalAid={canManageMedicalAid}
+            canAddClinicalRecords={canAddClinicalRecords}
+            canAddVitals={canAddVitals}
+            medicalAids={medicalAids}
+            conditions={conditions}
+            allergies={allergies}
+            medicationHistory={medicationHistory}
+            immunizations={immunizations}
+            familyHistory={familyHistory}
+            labResults={labResults}
+            vitalSigns={vitalSigns}
+          />
+        </section>
+      )}
     </main>
   );
 }

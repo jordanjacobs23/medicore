@@ -69,6 +69,29 @@ export default async function NewPatientPage() {
             />
           </label>
 
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Phone number
+              <input
+                type="tel"
+                name="phone"
+                autoComplete="tel"
+                placeholder="+27 82 123 4567"
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-normal outline-none transition focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950"
+              />
+            </label>
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Date of birth
+              <input
+                type="date"
+                name="dateOfBirth"
+                max={new Date().toISOString().slice(0, 10)}
+                autoComplete="bday"
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-normal outline-none transition focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950"
+              />
+            </label>
+          </div>
+
           <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-800">
             <Link
               href="/patients"
