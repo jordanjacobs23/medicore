@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Download, FileText } from "lucide-react";
 import { getSessionContext } from "@/lib/auth/session";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 
 export default async function PatientDocumentsPage() {
@@ -10,6 +11,11 @@ export default async function PatientDocumentsPage() {
   const documents = await prisma.patientDocument.findMany({
     where: { practiceId: session.practiceId, patientId: session.userId },
     orderBy: { createdAt: "desc" },
+  });
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_DOCUMENTS",
+    resourceId: session.userId,
+    metadata: { documentCount: documents.length },
   });
 
   return (

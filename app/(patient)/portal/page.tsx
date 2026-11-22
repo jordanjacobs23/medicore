@@ -1,5 +1,6 @@
 import { requirePatientSelfAccess } from "@/lib/authorization/require-permission";
 import { getSessionContext } from "@/lib/auth/session";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
@@ -75,6 +76,10 @@ export default async function PatientPortalPage() {
   if (!patient) {
     return null;
   }
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_DASHBOARD",
+    resourceId: session.userId,
+  });
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6 sm:py-12">

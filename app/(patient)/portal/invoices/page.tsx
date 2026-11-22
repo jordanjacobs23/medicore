@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ReceiptText } from "lucide-react";
 import { Prisma } from "@prisma/client";
 import { getSessionContext } from "@/lib/auth/session";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 
 const statusStyles: Record<string, string> = {
@@ -20,6 +21,11 @@ export default async function PatientInvoicesPage() {
     where: { practiceId: session.practiceId, patientId: session.userId },
     include: { payments: { select: { amount: true } } },
     orderBy: { createdAt: "desc" },
+  });
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_INVOICES",
+    resourceId: session.userId,
+    metadata: { invoiceCount: invoices.length },
   });
 
   return (

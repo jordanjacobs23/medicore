@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowDownToLine, ArrowLeft, FileBadge2, ReceiptText } from "lucide-react";
 import { PaymentPayerType } from "@prisma/client";
 import { getSessionContext } from "@/lib/auth/session";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 
 export default async function PatientTaxCertificatesPage() {
@@ -25,6 +26,10 @@ export default async function PatientTaxCertificatesPage() {
       select: { recordedAt: true },
     }),
   ]);
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_TAX_CERTIFICATES",
+    resourceId: session.userId,
+  });
   const currentYear = new Date().getUTCFullYear();
   const years = [...new Set([currentYear, ...payments.map((payment) => payment.recordedAt.getUTCFullYear())])].sort((a, b) => b - a);
 

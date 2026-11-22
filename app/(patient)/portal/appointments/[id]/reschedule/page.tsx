@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarClock, Clock3 } from "lucide-react";
 import { getSessionContext } from "@/lib/auth/session";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { getAvailableSlots, getLocalDateKey, parseDateKey } from "@/lib/appointments/availability";
 import { prisma } from "@/lib/prisma";
 import { reschedulePatientAppointment } from "../../actions";
@@ -24,6 +25,10 @@ export default async function ReschedulePatientAppointmentPage({
     },
   });
   if (!appointment) notFound();
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_APPOINTMENT",
+    resourceId: appointment.id,
+  });
   if (appointment.status !== "BOOKED" || appointment.scheduledAt <= new Date()) {
     throw new Error("This appointment can no longer be rescheduled.");
   }

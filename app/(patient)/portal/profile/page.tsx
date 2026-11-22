@@ -1,11 +1,27 @@
 import Link from "next/link";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { PatientConsentPurpose } from "@prisma/client";
 import { getSessionContext } from "@/lib/auth/session";
+import { logSensitiveRecordAccess } from "@/lib/audit";
+import {
+  PATIENT_PURPOSE_CONSENT_TEXT,
+  PATIENT_PURPOSE_CONSENT_VERSION,
+} from "@/lib/patient-consents";
 import { prisma } from "@/lib/prisma";
-import { updatePatientProfile } from "./actions";
+import {
+  updatePatientProfile,
+  updatePatientPurposeConsent,
+} from "./actions";
 import { ProfileSavedToast } from "./profile-saved-toast";
 
 const inputClass = "mt-1.5 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950";
+const consentPurposeLabels: Record<PatientConsentPurpose, string> = {
+  AI_SCRIBE: "AI clinical scribe",
+  TELEHEALTH: "Telehealth",
+  RECORDING: "Consultation recording",
+  MARKETING: "Marketing communications",
+  THIRD_PARTY_SHARE: "Care-related information sharing",
+};
 
 function ProfileField({ label, name, value, type = "text" }: { label: string; name: string; value: string | null; type?: "text" | "tel" }) {
   return (
@@ -19,7 +35,7 @@ function ProfileField({ label, name, value, type = "text" }: { label: string; na
 export default async function PatientProfilePage({ searchParams }: { searchParams: Promise<{ updated?: string }> }) {
   const session = await getSessionContext();
   if (!session || session.userType !== "PATIENT") return null;
-  const [{ updated }, patient, consents] = await Promise.all([
+  const [{ updated }, patient, consents, purposeConsents] = await Promise.all([
     searchParams,
     prisma.patient.findFirst({
       where: { id: session.userId, practiceId: session.practiceId },
@@ -36,8 +52,22 @@ export default async function PatientProfilePage({ searchParams }: { searchParam
       orderBy: { acceptedAt: "desc" },
       select: { noticeVersion: true, acceptedAt: true },
     }),
+    prisma.patientPurposeConsent.findMany({
+      where: { practiceId: session.practiceId, patientId: session.userId },
+      orderBy: { sequence: "desc" },
+    }),
   ]);
   if (!patient) return null;
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_PATIENT_PROFILE",
+    resourceId: session.userId,
+  });
+  const latestPurposeConsents = new Map<PatientConsentPurpose, (typeof purposeConsents)[number]>();
+  purposeConsents.forEach((consent) => {
+    if (!latestPurposeConsents.has(consent.purpose)) {
+      latestPurposeConsents.set(consent.purpose, consent);
+    }
+  });
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 pb-12 pt-10 sm:px-6">
@@ -105,6 +135,72 @@ export default async function PatientProfilePage({ searchParams }: { searchParam
           <button type="submit" className="inline-flex h-11 items-center justify-center rounded-lg bg-[#397f99] px-5 text-sm font-bold text-white">Save</button>
         </div>
       </form>
+
+      <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 sm:p-6">
+        <h2 className="font-bold text-slate-950 dark:text-white">Optional purpose-specific consents</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          These choices are separate from acknowledging the privacy notice and are recorded with their wording and version. You can withdraw a consent at any time.
+        </p>
+        <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
+          {Object.values(PatientConsentPurpose).map((purpose) => {
+            const latest = latestPurposeConsents.get(purpose);
+            const granted = latest?.granted === true;
+            const currentScope =
+              granted &&
+              latest.scopeVersion === PATIENT_PURPOSE_CONSENT_VERSION;
+
+            return (
+              <article key={purpose} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {consentPurposeLabels[purpose]}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {PATIENT_PURPOSE_CONSENT_TEXT[purpose]}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {currentScope
+                      ? `Granted ${latest.recordedAt.toLocaleDateString("en-ZA")}`
+                      : granted
+                        ? `Previously granted under an earlier wording on ${latest.recordedAt.toLocaleDateString("en-ZA")}`
+                        : latest?.granted === false
+                        ? `Withdrawn ${latest.recordedAt.toLocaleDateString("en-ZA")}`
+                        : "Not granted"}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {granted ? (
+                    <form action={updatePatientPurposeConsent}>
+                      <input type="hidden" name="purpose" value={purpose} />
+                      <button
+                        type="submit"
+                        name="granted"
+                        value="no"
+                        className="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+                      >
+                        Withdraw consent
+                      </button>
+                    </form>
+                  ) : null}
+                  {!currentScope ? (
+                    <form action={updatePatientPurposeConsent}>
+                      <input type="hidden" name="purpose" value={purpose} />
+                      <button
+                        type="submit"
+                        name="granted"
+                        value="yes"
+                        className="inline-flex h-9 items-center rounded-lg border border-[#397f99] bg-[#397f99] px-3 text-xs font-semibold text-white hover:bg-[#2f718a]"
+                      >
+                        {granted ? "Review and renew" : "Grant consent"}
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
     </main>
   );
 }

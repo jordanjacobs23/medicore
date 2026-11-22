@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { createClaimFromEncounter } from "../../actions";
 import { ClaimLineFields } from "@/components/claim-line-fields";
@@ -41,6 +42,10 @@ export default async function NewClaimPage({
         },
       },
     },
+  });
+  await logSensitiveRecordAccess(session, {
+    resourceType: "BILLING_CLAIM_ENCOUNTER_SELECTION",
+    metadata: { encounterCount: encounters.length },
   });
   const selectedEncounter = encounters.find((item) => item.id === requestedEncounterId);
 

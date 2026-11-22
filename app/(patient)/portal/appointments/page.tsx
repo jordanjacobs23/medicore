@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, CalendarPlus, Clock3, UserRound } from "lucide-react";
 import { getSessionContext } from "@/lib/auth/session";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { cancelPatientAppointment, updateSmsReminderPreference } from "./actions";
 
@@ -40,6 +41,10 @@ export default async function PatientAppointmentsPage({
     }),
   ]);
   if (!patient) return null;
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_APPOINTMENTS",
+    resourceId: session.userId,
+  });
   const upcoming = appointments.filter((appointment) => appointment.scheduledAt >= now && !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(appointment.status));
   const past = appointments.filter((appointment) => !upcoming.includes(appointment));
 

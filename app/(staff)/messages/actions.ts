@@ -2,7 +2,10 @@
 
 import { PortalMessageSender } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/authorization/require-permission";
+import {
+  requirePermission,
+  requirePractitionerPatientAccess,
+} from "@/lib/authorization/require-permission";
 import { prisma } from "@/lib/prisma";
 
 export async function sendStaffMessage(formData: FormData) {
@@ -13,6 +16,7 @@ export async function sendStaffMessage(formData: FormData) {
   if (!patientId) {
     throw new Error("A patient is required.");
   }
+  await requirePractitionerPatientAccess(patientId);
   if (!body) {
     throw new Error("Enter a message before sending.");
   }
@@ -28,16 +32,29 @@ export async function sendStaffMessage(formData: FormData) {
     throw new Error("Patient not found in this practice.");
   }
 
-  await prisma.portalMessage.create({
-    data: {
-      practiceId: session.practiceId,
-      patientId: patient.id,
-      senderStaffId: session.userId,
-      senderType: PortalMessageSender.PRACTICE,
-      body,
-    },
+  await prisma.$transaction(async (tx) => {
+    const message = await tx.portalMessage.create({
+      data: {
+        practiceId: session.practiceId,
+        patientId: patient.id,
+        senderStaffId: session.userId,
+        senderType: PortalMessageSender.PRACTICE,
+        body,
+      },
+      select: { id: true },
+    });
+    await tx.auditLog.create({
+      data: {
+        practiceId: session.practiceId,
+        actorId: session.userId,
+        actorType: "STAFF",
+        action: "CREATE",
+        resourceType: "PORTAL_MESSAGE",
+        resourceId: message.id,
+        metadata: { patientId: patient.id },
+      },
+    });
   });
-
   revalidatePath("/messages");
   revalidatePath(`/messages/${patient.id}`);
 }

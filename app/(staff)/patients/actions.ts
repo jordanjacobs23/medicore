@@ -74,7 +74,8 @@ export async function updatePatientPersonalInformation(
   _state: PatientUpdateState,
   formData: FormData,
 ): Promise<PatientUpdateState> {
-  const session = await requirePermission("patient:update");
+  await requirePermission("patient:update");
+  const session = await requirePractitionerPatientAccess(patientId);
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();

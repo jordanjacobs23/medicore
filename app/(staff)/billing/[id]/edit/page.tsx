@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ReceiptText } from "lucide-react";
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { updateInvoice } from "../../actions";
 
@@ -20,6 +21,11 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     }),
   ]);
   if (!invoice) notFound();
+  await logSensitiveRecordAccess(session, {
+    resourceType: "BILLING_INVOICE",
+    resourceId: invoice.id,
+    metadata: { patientId: invoice.patientId },
+  });
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-3xl px-4 pb-12 pt-28 sm:px-6">

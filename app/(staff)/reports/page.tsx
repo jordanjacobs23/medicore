@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import {
   addDaysToDateKey,
@@ -320,6 +321,14 @@ export default async function ReportsPage({
       select: { amount: true, dueDate: true, createdAt: true, payments: { select: { amount: true } } },
     }),
   ]);
+  await logSensitiveRecordAccess(session, {
+    resourceType: "STAFF_REPORT",
+    metadata: {
+      patientCount,
+      openClaimCount: openClaims.length,
+      outstandingInvoiceCount: outstandingInvoices.length,
+    },
+  });
 
   const appointmentCounts = new Map(appointmentStatusGroups.map((row) => [row.status, row._count._all]));
   const appointmentTotal = appointmentStatusGroups.reduce((sum, row) => sum + row._count._all, 0);

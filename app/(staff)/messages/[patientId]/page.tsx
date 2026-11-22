@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { ArrowLeft, Send } from "lucide-react";
 import { notFound } from "next/navigation";
-import { requirePermission } from "@/lib/authorization/require-permission";
+import {
+  requirePermission,
+  requirePractitionerPatientAccess,
+} from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { sendStaffMessage } from "../actions";
 
@@ -12,6 +16,7 @@ export default async function StaffPatientMessagesPage({
 }) {
   const session = await requirePermission("patient:read");
   const { patientId } = await params;
+  await requirePractitionerPatientAccess(patientId);
   const patient = await prisma.patient.findFirst({
     where: { id: patientId, practiceId: session.practiceId },
     select: { id: true, firstName: true, lastName: true },
@@ -39,6 +44,10 @@ export default async function StaffPatientMessagesPage({
       data: { readAt: new Date() },
     }),
   ]);
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_MESSAGES",
+    resourceId: patient.id,
+  });
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-4xl px-4 pb-12 pt-28 sm:px-6">

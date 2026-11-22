@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MessageSquare, Search } from "lucide-react";
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 
 export default async function StaffMessagesPage({
@@ -11,20 +12,41 @@ export default async function StaffMessagesPage({
   const session = await requirePermission("patient:read");
   const params = await searchParams;
   const query = params.q?.trim() ?? "";
+  const patientFilters = [];
+  if (session.role === "PRACTITIONER") {
+    const now = new Date();
+    patientFilters.push({
+      OR: [
+        { appointments: { some: { practitionerId: session.userId } } },
+        { encounters: { some: { practitionerId: session.userId } } },
+        { prescriptions: { some: { practitionerId: session.userId } } },
+        {
+          breakGlassRequests: {
+            some: {
+              requesterStaffId: session.userId,
+              status: "APPROVED" as const,
+              expiresAt: { gt: now },
+            },
+          },
+        },
+      ],
+    });
+  }
+  if (query) {
+    patientFilters.push({
+      OR: [
+        { firstName: { contains: query, mode: "insensitive" as const } },
+        { lastName: { contains: query, mode: "insensitive" as const } },
+        { email: { contains: query, mode: "insensitive" as const } },
+      ],
+    });
+  }
 
   const patientConversations = await prisma.patient.findMany({
     where: {
       practiceId: session.practiceId,
       messages: { some: {} },
-      ...(query
-        ? {
-            OR: [
-              { firstName: { contains: query, mode: "insensitive" as const } },
-              { lastName: { contains: query, mode: "insensitive" as const } },
-              { email: { contains: query, mode: "insensitive" as const } },
-            ],
-          }
-        : {}),
+      ...(patientFilters.length ? { AND: patientFilters } : {}),
     },
     include: {
       messages: {
@@ -39,6 +61,10 @@ export default async function StaffMessagesPage({
       },
     },
     orderBy: { lastName: "asc" },
+  });
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_MESSAGE_INBOX",
+    metadata: { conversationCount: patientConversations.length },
   });
 
   return (

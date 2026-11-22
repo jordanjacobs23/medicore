@@ -1,4 +1,5 @@
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Plus, ReceiptText, Search } from "lucide-react";
@@ -50,6 +51,10 @@ export default async function BillingPage({
     prisma.invoice.count({ where: { practiceId: session.practiceId, status: "PAID" } }),
     prisma.invoice.count({ where: { practiceId: session.practiceId, status: "OVERDUE" } }),
   ]);
+  await logSensitiveRecordAccess(session, {
+    resourceType: "BILLING_INVOICE_LIST",
+    metadata: { invoiceCount: invoices.length },
+  });
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[1500px] px-4 pb-12 pt-28 sm:px-6 lg:px-8">

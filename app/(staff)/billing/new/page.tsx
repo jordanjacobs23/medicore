@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, ReceiptText } from "lucide-react";
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { createInvoice } from "../actions";
 
@@ -10,6 +11,10 @@ export default async function NewInvoicePage() {
     where: { practiceId: session.practiceId },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     select: { id: true, firstName: true, lastName: true },
+  });
+  await logSensitiveRecordAccess(session, {
+    resourceType: "BILLING_PATIENT_SELECTION",
+    metadata: { patientCount: patients.length },
   });
 
   return (

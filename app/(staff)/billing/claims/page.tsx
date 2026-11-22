@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { checkClaimStatus, resubmitClaimToScheme, submitClaimToScheme } from "../actions";
 
@@ -29,6 +30,10 @@ export default async function ClaimsPage() {
       events: { orderBy: { createdAt: "desc" }, take: 1, select: { type: true } },
     },
     orderBy: { createdAt: "desc" },
+  });
+  await logSensitiveRecordAccess(session, {
+    resourceType: "BILLING_CLAIM_LIST",
+    metadata: { claimCount: claims.length },
   });
 
   return (

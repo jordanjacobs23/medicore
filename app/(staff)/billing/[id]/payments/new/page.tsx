@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, WalletCards } from "lucide-react";
 import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { recordPayment } from "../../../actions";
 
@@ -24,6 +25,11 @@ export default async function RecordPaymentPage({
   if (invoice.status === "DRAFT" || invoice.status === "VOID" || invoice.status === "PAID") {
     notFound();
   }
+  await logSensitiveRecordAccess(session, {
+    resourceType: "BILLING_PAYMENT",
+    resourceId: invoice.id,
+    metadata: { patientId: invoice.patientId },
+  });
 
   const paid = invoice.payments.reduce(
     (total, payment) => total.add(payment.amount),

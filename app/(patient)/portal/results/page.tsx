@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Microscope } from "lucide-react";
 import { LabResultStatus } from "@prisma/client";
 import { getSessionContext } from "@/lib/auth/session";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 
 const releasedStatuses = [LabResultStatus.FINAL, LabResultStatus.AMENDED, LabResultStatus.CORRECTED];
@@ -16,6 +17,11 @@ export default async function PatientResultsPage() {
       status: { in: releasedStatuses },
     },
     orderBy: { releasedAt: "desc" },
+  });
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_LAB_RESULTS",
+    resourceId: session.userId,
+    metadata: { resultCount: results.length },
   });
 
   return (

@@ -10,7 +10,7 @@ export async function GET() {
 
   const scope = { patientId: session.userId };
   const practiceScope = { ...scope, practiceId: session.practiceId };
-  const [patient, appointments, encounters, prescriptions, observations, conditions, allergies, medicationHistory, immunizations, familyHistory, labResults, vitalSigns, medicalAids, invoices, payments, claims, documents, messages, consents, correctionRequests] = await Promise.all([
+  const [patient, appointments, encounters, prescriptions, observations, conditions, allergies, medicationHistory, immunizations, familyHistory, labResults, vitalSigns, medicalAids, invoices, payments, claims, documents, messages, consents, purposeConsents, correctionRequests] = await Promise.all([
     prisma.patient.findFirst({
       where: { id: session.userId, practiceId: session.practiceId },
       select: {
@@ -41,6 +41,7 @@ export async function GET() {
     prisma.patientDocument.findMany({ where: practiceScope, orderBy: { createdAt: "asc" }, select: { name: true, fileUrl: true, contentType: true, size: true, createdAt: true } }),
     prisma.portalMessage.findMany({ where: practiceScope, orderBy: { createdAt: "asc" }, select: { senderType: true, body: true, readAt: true, createdAt: true } }),
     prisma.patientConsent.findMany({ where: practiceScope, orderBy: { acceptedAt: "asc" }, select: { noticeVersion: true, acceptedAt: true } }),
+    prisma.patientPurposeConsent.findMany({ where: practiceScope, orderBy: { sequence: "asc" }, select: { purpose: true, granted: true, scopeText: true, scopeVersion: true, actorType: true, sequence: true, recordedAt: true } }),
     prisma.patientCorrectionRequest.findMany({ where: practiceScope, orderBy: { createdAt: "asc" }, select: { requestedFields: true, requestedChanges: true, status: true, reviewNote: true, reviewedAt: true, createdAt: true } }),
   ]);
 
@@ -59,7 +60,7 @@ export async function GET() {
       appointments, encounters, prescriptions, observations, conditions, allergies,
       medicationHistory, immunizations, familyHistory, labResults, vitalSigns,
       medicalAids, invoices, payments, claims, documents, messages, consents,
-      correctionRequests,
+      purposeConsents, correctionRequests,
     },
   };
   return new Response(JSON.stringify(exportData, null, 2), {

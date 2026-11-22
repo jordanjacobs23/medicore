@@ -26,6 +26,11 @@ import { prisma } from "@/lib/prisma";
 const clinicalChartPermissions = ["patient:update", "observation:create"] as const;
 const medicalAidPermissions = ["patient:update", "claim:*"] as const;
 const vitalPermissions = ["patient:update", "vital:create"] as const;
+const releasableLabResultStatuses: LabResultStatus[] = [
+  LabResultStatus.FINAL,
+  LabResultStatus.AMENDED,
+  LabResultStatus.CORRECTED,
+];
 
 function text(formData: FormData, name: string) {
   const value = formData.get(name);
@@ -362,7 +367,7 @@ export async function createLabResult(patientId: string, formData: FormData) {
     LabResultStatus.FINAL,
   );
   const releaseToPatient = formData.get("releaseToPatient") === "on";
-  if (releaseToPatient && ![LabResultStatus.FINAL, LabResultStatus.AMENDED, LabResultStatus.CORRECTED].includes(status)) {
+  if (releaseToPatient && !releasableLabResultStatuses.includes(status)) {
     throw new Error("Only final, amended, or corrected results can be released to the patient portal.");
   }
 
@@ -411,7 +416,7 @@ export async function updateLabResultRelease(patientId: string, resultId: string
   if (!result) throw new Error("Lab result not found for this patient.");
 
   const release = formData.get("released") === "yes";
-  if (release && ![LabResultStatus.FINAL, LabResultStatus.AMENDED, LabResultStatus.CORRECTED].includes(result.status)) {
+  if (release && !releasableLabResultStatuses.includes(result.status)) {
     throw new Error("Only final, amended, or corrected results can be released to the patient portal.");
   }
   await prisma.$transaction(async (tx) => {

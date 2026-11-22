@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Stethoscope } from "lucide-react";
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { createEncounter } from "../actions";
 
@@ -26,6 +27,10 @@ export default async function NewEncounterPage({
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     select: { id: true, firstName: true, lastName: true, dateOfBirth: true },
+  });
+  await logSensitiveRecordAccess(session, {
+    resourceType: "CLINICAL_PATIENT_SELECTION",
+    metadata: { patientCount: patients.length },
   });
   const selectedPatientId = patients.some(
     (patient) => patient.id === requestedPatientId,

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { recordClaimResponse, updateClaimDetails } from "../../../actions";
 import { ClaimLineFields } from "@/components/claim-line-fields";
@@ -26,6 +27,11 @@ export default async function EditClaimPage({
   });
 
   if (!claim) notFound();
+  await logSensitiveRecordAccess(session, {
+    resourceType: "BILLING_CLAIM",
+    resourceId: claim.id,
+    metadata: { patientId: claim.patientId },
+  });
 
   const canEdit = editableStatuses.includes(claim.status);
   const canRecordResponse = awaitingResponseStatuses.includes(claim.status);

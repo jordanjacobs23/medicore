@@ -4,9 +4,10 @@ import {
   hasPermission,
 } from "../components/clinical-core/src/rbac";
 
-test("practitioners have wildcard clinical permissions", () => {
+test("practitioners have clinical permissions without account-link access", () => {
   assert.equal(hasPermission("PRACTITIONER", "encounter:create"), true);
   assert.equal(hasPermission("PRACTITIONER", "prescription:read"), true);
+  assert.equal(hasPermission("PRACTITIONER", "patient:connect_account"), false);
 });
 
 test("practice managers cannot manage clinical records without explicit permission", () => {

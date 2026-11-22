@@ -626,8 +626,9 @@ export async function recordClaimResponse(formData: FormData) {
     include: { invoice: true },
   });
   if (!claim || !claim.invoice) throw new Error("Claim invoice not found in this practice.");
+  const invoice = claim.invoice;
   await requirePractitionerPatientAccess(claim.patientId);
-  if (claim.invoice.practiceId !== session.practiceId || claim.invoice.patientId !== claim.patientId) {
+  if (invoice.practiceId !== session.practiceId || invoice.patientId !== claim.patientId) {
     throw new Error("Claim invoice does not belong to this patient and practice.");
   }
   if (!["SUBMITTED", "RESUBMITTED", "ACKNOWLEDGED", "PENDING"].includes(claim.status)) {
@@ -642,15 +643,32 @@ export async function recordClaimResponse(formData: FormData) {
   const amountAuthorised = parseNonNegative(amountAuthorisedValue, "authorised amount");
   const amountPaid = parseNonNegative(amountPaidValue, "paid amount");
   const status = statusValue as ClaimStatus;
-  if ([ClaimStatus.APPROVED, ClaimStatus.PARTIALLY_APPROVED, ClaimStatus.PAID].includes(status) && (!amountAuthorised || amountAuthorised.lte(0))) {
+  const statusesRequiringAuthorisation: ClaimStatus[] = [
+    ClaimStatus.APPROVED,
+    ClaimStatus.PARTIALLY_APPROVED,
+    ClaimStatus.PAID,
+  ];
+  const adjudicatedStatuses: ClaimStatus[] = [
+    ClaimStatus.APPROVED,
+    ClaimStatus.PARTIALLY_APPROVED,
+    ClaimStatus.REJECTED,
+    ClaimStatus.DENIED,
+    ClaimStatus.PAID,
+    ClaimStatus.WRITTEN_OFF,
+  ];
+  const rejectedStatuses: ClaimStatus[] = [
+    ClaimStatus.REJECTED,
+    ClaimStatus.DENIED,
+  ];
+  if (statusesRequiringAuthorisation.includes(status) && (!amountAuthorised || amountAuthorised.lte(0))) {
     throw new Error("Enter the amount authorised by the scheme.");
   }
   if (amountAuthorised?.gt(claim.amount)) throw new Error("Authorised amount cannot exceed the amount claimed.");
-  if (amountAuthorised?.gt(claim.invoice.amount)) throw new Error("Authorised amount cannot exceed the invoice total.");
+  if (amountAuthorised?.gt(invoice.amount)) throw new Error("Authorised amount cannot exceed the invoice total.");
   if (amountPaid && (!amountAuthorised || amountPaid.gt(amountAuthorised))) {
     throw new Error("Paid amount cannot exceed the authorised amount.");
   }
-  if ([ClaimStatus.REJECTED, ClaimStatus.DENIED].includes(status) && !rejectReason) {
+  if (rejectedStatuses.includes(status) && !rejectReason) {
     throw new Error("Enter the scheme's rejection reason.");
   }
   if (status === ClaimStatus.PAID && (!amountPaid || amountPaid.lte(0))) {
@@ -663,14 +681,7 @@ export async function recordClaimResponse(formData: FormData) {
   });
   if (!staff) throw new Error("The current staff member is not active in this practice.");
 
-  const adjudicatedAt = [
-    ClaimStatus.APPROVED,
-    ClaimStatus.PARTIALLY_APPROVED,
-    ClaimStatus.REJECTED,
-    ClaimStatus.DENIED,
-    ClaimStatus.PAID,
-    ClaimStatus.WRITTEN_OFF,
-  ].includes(status) ? new Date() : undefined;
+  const adjudicatedAt = adjudicatedStatuses.includes(status) ? new Date() : undefined;
   const payload = {
     status,
     amountAuthorised: amountAuthorised?.toFixed(2) ?? null,
@@ -693,10 +704,10 @@ export async function recordClaimResponse(formData: FormData) {
     });
     if (amountAuthorised) {
       await tx.invoice.update({
-        where: { id: claim.invoice!.id },
+        where: { id: invoice.id },
         data: {
           schemeShare: amountAuthorised,
-          patientShare: claim.invoice.amount.minus(amountAuthorised),
+          patientShare: invoice.amount.minus(amountAuthorised),
           status: "ISSUED",
         },
       });
@@ -706,7 +717,7 @@ export async function recordClaimResponse(formData: FormData) {
         data: {
           practiceId: session.practiceId,
           patientId: claim.patientId,
-          invoiceId: claim.invoice!.id,
+          invoiceId: invoice.id,
           recordedById: staff.id,
           amount: amountPaid,
           method: "MEDICAL_AID",
@@ -715,11 +726,11 @@ export async function recordClaimResponse(formData: FormData) {
         },
       });
       const paid = await tx.payment.aggregate({
-        where: { invoiceId: claim.invoice!.id },
+        where: { invoiceId: invoice.id },
         _sum: { amount: true },
       });
-      if ((paid._sum.amount ?? new Prisma.Decimal(0)).gte(claim.invoice.amount)) {
-        await tx.invoice.update({ where: { id: claim.invoice!.id }, data: { status: "PAID" } });
+      if ((paid._sum.amount ?? new Prisma.Decimal(0)).gte(invoice.amount)) {
+        await tx.invoice.update({ where: { id: invoice.id }, data: { status: "PAID" } });
       }
     }
     await tx.claimEvent.create({

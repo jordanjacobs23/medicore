@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowDownToLine, ArrowLeft, FileCheck2 } from "lucide-react";
 import { getSessionContext } from "@/lib/auth/session";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { submitCorrectionRequest } from "../privacy-actions";
 
@@ -20,6 +21,10 @@ export default async function PatientPrivacyPage({ searchParams }: { searchParam
       orderBy: { createdAt: "desc" },
     }),
   ]);
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_PRIVACY_REQUESTS",
+    resourceId: session.userId,
+  });
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 pb-12 pt-10 sm:px-6">

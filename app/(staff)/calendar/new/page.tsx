@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, CalendarPlus, Clock3 } from "lucide-react";
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { getAvailableSlots, getLocalDateKey, parseDateKey } from "@/lib/appointments/availability";
 import { prisma } from "@/lib/prisma";
 import { createAppointment } from "../actions";
@@ -25,6 +26,10 @@ export default async function NewAppointmentPage({
     }),
     prisma.practice.findUnique({ where: { id: session.practiceId }, select: { timeZone: true } }),
   ]);
+  await logSensitiveRecordAccess(session, {
+    resourceType: "APPOINTMENT_PATIENT_SELECTION",
+    metadata: { patientCount: patients.length },
+  });
   if (!practice) throw new Error("Practice not found.");
 
   const today = getLocalDateKey(new Date(), practice.timeZone);

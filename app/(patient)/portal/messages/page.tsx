@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, MessageSquare, Send } from "lucide-react";
 import { getSessionContext } from "@/lib/auth/session";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { sendPatientMessage } from "./actions";
 
@@ -23,6 +24,11 @@ export default async function PatientMessagesPage() {
       data: { readAt: new Date() },
     }),
   ]);
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PORTAL_MESSAGES",
+    resourceId: session.userId,
+    metadata: { messageCount: messages.length },
+  });
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-4xl px-4 pb-12 pt-10 sm:px-6">

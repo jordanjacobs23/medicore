@@ -1,4 +1,5 @@
 import { requirePermission } from "@/lib/authorization/require-permission";
+import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import {
@@ -76,6 +77,10 @@ export default async function PatientsPage({
       },
     }),
   ]);
+  await logSensitiveRecordAccess(session, {
+    resourceType: "PATIENT_LIST",
+    metadata: { resultCount: patients.length, page: currentPage },
+  });
 
   const totalPages = Math.max(1, Math.ceil(patientCount / pageSize));
 

@@ -24,6 +24,7 @@ model Practice {
   portalMessages            PortalMessage[]
   auditLogs                 AuditLog[]
   patientConsents           PatientConsent[]
+  patientPurposeConsents    PatientPurposeConsent[]
   patientCorrectionRequests PatientCorrectionRequest[]
   breakGlassRequests        BreakGlassRequest[]
 }
@@ -106,6 +107,7 @@ model Patient {
   messages                     PortalMessage[]            @relation("PortalMessagePatientSubject")
   sentMessages                 PortalMessage[]            @relation("PortalMessagePatientSender")
   consents                     PatientConsent[]
+  purposeConsents              PatientPurposeConsent[]
   correctionRequests           PatientCorrectionRequest[]
   breakGlassRequests           BreakGlassRequest[]
 }
@@ -703,6 +705,14 @@ enum AuditActorType {
   PATIENT
 }
 
+enum PatientConsentPurpose {
+  AI_SCRIBE
+  TELEHEALTH
+  RECORDING
+  MARKETING
+  THIRD_PARTY_SHARE
+}
+
 enum PatientSexAtBirth {
   FEMALE
   MALE
@@ -787,6 +797,24 @@ model PatientConsent {
 
   @@unique([practiceId, patientId, noticeVersion])
   @@index([patientId, acceptedAt])
+}
+
+model PatientPurposeConsent {
+  id            String                @id @default(cuid())
+  practiceId    String
+  patientId     String
+  purpose       PatientConsentPurpose
+  granted       Boolean
+  scopeText     String                @db.Text
+  scopeVersion  String
+  actorType     AuditActorType
+  sequence      Int                   @unique @default(autoincrement())
+  recordedAt    DateTime              @default(now())
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+  patient  Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([practiceId, patientId, purpose, recordedAt])
 }
 
 model PatientCorrectionRequest {

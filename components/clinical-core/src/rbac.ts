@@ -1,6 +1,8 @@
 export const PERMISSIONS = {
   PRACTITIONER: [
-    "patient:*",
+    "patient:read",
+    "patient:create",
+    "patient:update",
     "encounter:*",
     "encounter:read",
     "prescription:*",

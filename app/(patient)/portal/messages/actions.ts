@@ -19,14 +19,27 @@ export async function sendPatientMessage(formData: FormData) {
     throw new Error("Messages must be 4000 characters or fewer.");
   }
 
-  await prisma.portalMessage.create({
-    data: {
-      practiceId: session.practiceId,
-      patientId: session.userId,
-      senderPatientId: session.userId,
-      senderType: PortalMessageSender.PATIENT,
-      body,
-    },
+  await prisma.$transaction(async (tx) => {
+    const message = await tx.portalMessage.create({
+      data: {
+        practiceId: session.practiceId,
+        patientId: session.userId,
+        senderPatientId: session.userId,
+        senderType: PortalMessageSender.PATIENT,
+        body,
+      },
+      select: { id: true },
+    });
+    await tx.auditLog.create({
+      data: {
+        practiceId: session.practiceId,
+        actorId: session.userId,
+        actorType: "PATIENT",
+        action: "CREATE",
+        resourceType: "PORTAL_MESSAGE",
+        resourceId: message.id,
+      },
+    });
   });
 
   revalidatePath("/portal/messages");
