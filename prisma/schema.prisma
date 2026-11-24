@@ -27,6 +27,8 @@ model Practice {
   patientPurposeConsents    PatientPurposeConsent[]
   patientCorrectionRequests PatientCorrectionRequest[]
   breakGlassRequests        BreakGlassRequest[]
+  drugCatalog               DrugCatalog[]
+  pharmacies                Pharmacy[]
 }
 
 model Staff {
@@ -59,6 +61,7 @@ model Staff {
   sentMessages               PortalMessage[]        @relation("PortalMessageStaffSender")
   breakGlassRequests         BreakGlassRequest[]    @relation("BreakGlassRequester")
   reviewedBreakGlassRequests BreakGlassRequest[]    @relation("BreakGlassReviewer")
+  encounterAddenda           EncounterAddendum[]
 }
 
 model Patient {
@@ -182,6 +185,11 @@ model Encounter {
   chiefComplaint String?
   diagnosis      String?
   notes          String?
+  subjective     String?
+  objective      String?
+  assessment     String?
+  plan           String?
+  sensitivity    EncounterSensitivity @default(NORMAL)
   signedAt       DateTime?
   lockedHash     String?
 
@@ -199,6 +207,21 @@ model Encounter {
   vitalSigns           VitalSign[]
   invoices             Invoice[]
   claims               Claim[]
+  addenda              EncounterAddendum[]
+}
+
+model EncounterAddendum {
+  id             String              @id @default(cuid())
+  encounterId    String
+  authorId       String
+  text           String
+  sensitivity    EncounterSensitivity @default(NORMAL)
+  createdAt      DateTime            @default(now())
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  author    Staff     @relation(fields: [authorId], references: [id])
+
+  @@index([encounterId, createdAt])
 }
 
 model Prescription {
@@ -214,13 +237,83 @@ model Prescription {
   quantity       String?
   refills        Int                @default(0)
   instructions   String?
+  drugCatalogId  String?
+  signedAt       DateTime?
+  signedHash     String?
+  pdfHash        String?
+  pharmacyId     String?
+  pharmacyStatus PharmacyHandoffStatus @default(NOT_SENT)
+  sentAt         DateTime?
+  pharmacyReference String?
+  interactionWarnings Json @default("[]")
   status         PrescriptionStatus @default(ACTIVE)
   createdAt      DateTime           @default(now())
 
   encounter            Encounter             @relation(fields: [encounterId], references: [id])
   patient              Patient               @relation(fields: [patientId], references: [id])
   practitioner         Staff                 @relation(fields: [practitionerId], references: [id])
+  drugCatalog          DrugCatalog?          @relation(fields: [drugCatalogId], references: [id])
+  pharmacy             Pharmacy?             @relation(fields: [pharmacyId], references: [id])
   medicationStatements MedicationStatement[]
+}
+
+model DrugCatalog {
+  id             String   @id @default(cuid())
+  practiceId     String
+  name           String
+  genericName    String?
+  strength       String?
+  form           String?
+  route          String?
+  activeIngredients String?
+  externalCode   String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  prescriptions Prescription[]
+  interactionsAsA DrugInteraction[] @relation("DrugInteractionA")
+  interactionsAsB DrugInteraction[] @relation("DrugInteractionB")
+
+  @@unique([practiceId, name, strength])
+  @@index([practiceId, isActive, name])
+}
+
+model DrugInteraction {
+  id             String                 @id @default(cuid())
+  drugAId        String
+  drugBId        String
+  severity       InteractionSeverity
+  description    String
+  source         String?
+  isActive       Boolean                @default(true)
+  createdAt      DateTime               @default(now())
+
+  drugA DrugCatalog @relation("DrugInteractionA", fields: [drugAId], references: [id], onDelete: Cascade)
+  drugB DrugCatalog @relation("DrugInteractionB", fields: [drugBId], references: [id], onDelete: Cascade)
+
+  @@unique([drugAId, drugBId])
+  @@index([drugAId, isActive])
+  @@index([drugBId, isActive])
+}
+
+model Pharmacy {
+  id           String   @id @default(cuid())
+  practiceId   String
+  name         String
+  phone        String?
+  email        String?
+  address      String?
+  externalId   String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  prescriptions Prescription[]
+
+  @@index([practiceId, isActive, name])
 }
 
 model Observation {
@@ -646,10 +739,35 @@ enum EncounterStatus {
   CANCELLED
 }
 
+enum EncounterSensitivity {
+  NORMAL
+  SENSITIVE
+  RESTRICTED
+}
+
 enum PrescriptionStatus {
+  DRAFT
   ACTIVE
+  SIGNED
+  SENT
   COMPLETED
   CANCELLED
+}
+
+enum PharmacyHandoffStatus {
+  NOT_SENT
+  QUEUED
+  SENT
+  FAILED
+  ACKNOWLEDGED
+  CANCELLED
+}
+
+enum InteractionSeverity {
+  MINOR
+  MODERATE
+  SEVERE
+  CONTRAINDICATED
 }
 
 enum ObservationType {

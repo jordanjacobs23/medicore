@@ -10,7 +10,8 @@ import { EditPatientPersonalInformation } from "@/components/edit-patient-person
 import { PatientAccountLink } from "@/components/patient-account-link";
 import { PatientChart } from "@/components/patient-chart";
 import { cancelPrescription } from "../../clinical/prescriptions/actions";
-import { completeEncounter } from "../../clinical/actions";
+import { addEncounterAddendum, completeEncounter } from "../../clinical/actions";
+import { handoffPrescription, signPrescription } from "../../clinical/prescriptions/actions";
 import { updatePatientCorrectionRequestStatus } from "../chart-actions";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -126,7 +127,10 @@ export default async function PatientDetailPage({
               : {}),
           },
           orderBy: { startedAt: "desc" },
-          include: { practitioner: true },
+          include: {
+            practitioner: true,
+            addenda: { include: { author: true }, orderBy: { createdAt: "asc" } },
+          },
           take: 6,
         })
       : Promise.resolve([]),
@@ -142,7 +146,7 @@ export default async function PatientDetailPage({
             },
           },
           orderBy: { createdAt: "desc" },
-          include: { practitioner: true },
+          include: { practitioner: true, drugCatalog: true, pharmacy: true },
           take: 6,
         })
       : Promise.resolve([]),
@@ -177,6 +181,12 @@ export default async function PatientDetailPage({
     ]),
   ]);
   const correctionRequests = await correctionRequestsPromise;
+  const pharmacies = session.role === "PRACTITIONER"
+    ? await prisma.pharmacy.findMany({
+        where: { practiceId: session.practiceId, isActive: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
 
   const [
     medicalAids,
@@ -457,6 +467,41 @@ export default async function PatientDetailPage({
                       Diagnosis: {encounter.diagnosis}
                     </p>
                   )}
+                  {(encounter.subjective || encounter.objective || encounter.assessment || encounter.plan) && (
+                    <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                      {encounter.subjective && <div><dt className="font-bold text-slate-700 dark:text-slate-200">Subjective</dt><dd className="mt-1 text-slate-600 dark:text-slate-300">{encounter.subjective}</dd></div>}
+                      {encounter.objective && <div><dt className="font-bold text-slate-700 dark:text-slate-200">Objective</dt><dd className="mt-1 text-slate-600 dark:text-slate-300">{encounter.objective}</dd></div>}
+                      {encounter.assessment && <div><dt className="font-bold text-slate-700 dark:text-slate-200">Assessment</dt><dd className="mt-1 text-slate-600 dark:text-slate-300">{encounter.assessment}</dd></div>}
+                      {encounter.plan && <div><dt className="font-bold text-slate-700 dark:text-slate-200">Plan</dt><dd className="mt-1 text-slate-600 dark:text-slate-300">{encounter.plan}</dd></div>}
+                    </dl>
+                  )}
+                  {encounter.addenda.length > 0 && (
+                    <div className="mt-3 space-y-2 border-l-2 border-amber-300 pl-3">
+                      {encounter.addenda.map((addendum) => (
+                        <div key={addendum.id} className="text-xs">
+                          <p className="font-semibold text-slate-700 dark:text-slate-200">
+                            Addendum · {addendum.sensitivity} · {formatDate(addendum.createdAt)}
+                          </p>
+                          <p className="mt-1 text-slate-600 dark:text-slate-300">{addendum.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {session.role === "PRACTITIONER" && encounter.practitionerId === session.userId && (
+                    <details className="mt-3 text-xs">
+                      <summary className="cursor-pointer font-semibold text-[#397f99]">Add addendum</summary>
+                      <form action={addEncounterAddendum} className="mt-2 grid gap-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-900">
+                        <input type="hidden" name="encounterId" value={encounter.id} />
+                        <textarea required name="addendum" rows={3} maxLength={5000} className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-950" placeholder="Document late information or correction" />
+                        <select name="sensitivity" defaultValue="NORMAL" className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-950">
+                          <option value="NORMAL">Normal</option>
+                          <option value="SENSITIVE">Sensitive</option>
+                          <option value="RESTRICTED">Restricted</option>
+                        </select>
+                        <button type="submit" className="w-fit rounded-md bg-[#397f99] px-3 py-2 font-semibold text-white">Add addendum</button>
+                      </form>
+                    </details>
+                  )}
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     {session.role === "PRACTITIONER" && encounter.status === "IN_PROGRESS" && (
                       <form action={completeEncounter}>
@@ -500,12 +545,54 @@ export default async function PatientDetailPage({
                       {prescription.instructions && (
                         <p className="mt-2 text-xs text-slate-500">{prescription.instructions}</p>
                       )}
+                      {Array.isArray(prescription.interactionWarnings) && prescription.interactionWarnings.length > 0 && (
+                        <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                          Interaction warnings: {prescription.interactionWarnings.length} recorded
+                        </p>
+                      )}
+                      {prescription.signedAt && (
+                        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                          Signed {formatDate(prescription.signedAt)} · Hash {prescription.signedHash?.slice(0, 12)}
+                        </p>
+                      )}
+                      {prescription.pharmacy && (
+                        <p className="mt-2 text-xs text-sky-700 dark:text-sky-300">
+                          Pharmacy hand-off: {prescription.pharmacy.name} · {prescription.pharmacyStatus}
+                        </p>
+                      )}
                       <p className="mt-2 text-xs text-slate-400">
-                        Prescribed by {prescription.practitioner.firstName} {prescription.practitioner.lastName} on {formatDate(prescription.createdAt)}. Electronic record only; not sent to a pharmacy.
+                        Prescribed by {prescription.practitioner.firstName} {prescription.practitioner.lastName} on {formatDate(prescription.createdAt)}.
                       </p>
                     </div>
                     <span className="text-[10px] font-bold text-slate-400">{prescription.status}</span>
                   </div>
+                  {session.role === "PRACTITIONER" &&
+                    prescription.practitionerId === session.userId &&
+                    prescription.status === "ACTIVE" && (
+                      <form action={signPrescription.bind(null, prescription.id)} className="mt-3">
+                        <button type="submit" className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-300">
+                          Sign prescription
+                        </button>
+                      </form>
+                    )}
+                  {session.role === "PRACTITIONER" &&
+                    prescription.practitionerId === session.userId &&
+                    prescription.signedAt &&
+                    prescription.status !== "CANCELLED" &&
+                    prescription.pharmacyStatus === "NOT_SENT" &&
+                    pharmacies.length > 0 && (
+                      <form action={handoffPrescription.bind(null, prescription.id)} className="mt-3 flex flex-wrap items-center gap-2">
+                        <select name="pharmacyId" required className="rounded-lg border border-slate-200 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950">
+                          <option value="" disabled>Select pharmacy</option>
+                          {pharmacies.map((pharmacy) => (
+                            <option key={pharmacy.id} value={pharmacy.id}>{pharmacy.name}</option>
+                          ))}
+                        </select>
+                        <button type="submit" className="rounded-md bg-sky-700 px-3 py-2 text-xs font-semibold text-white">
+                          Queue pharmacy hand-off
+                        </button>
+                      </form>
+                    )}
                   {canCancelPrescriptions &&
                     prescription.status === "ACTIVE" &&
                     prescription.practitionerId === session.userId && (

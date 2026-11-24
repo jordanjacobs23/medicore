@@ -1,7 +1,7 @@
 "use server";
 
 import { createHash } from "node:crypto";
-import { ObservationType, Prisma } from "@prisma/client";
+import { EncounterSensitivity, ObservationType, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -18,6 +18,11 @@ export async function createEncounter(formData: FormData) {
   const session = await requirePermission("encounter:create");
   const patientId = text(formData, "patientId");
   const chiefComplaint = text(formData, "chiefComplaint");
+  const subjective = text(formData, "subjective");
+  const objective = text(formData, "objective");
+  const assessment = text(formData, "assessment");
+  const plan = text(formData, "plan");
+  const sensitivity = text(formData, "sensitivity");
   const diagnosis = text(formData, "diagnosis");
   const notes = text(formData, "notes");
   const observationTypeValue = text(formData, "observationType");
@@ -32,9 +37,13 @@ export async function createEncounter(formData: FormData) {
   const quantity = text(formData, "quantity");
   const refillsValue = text(formData, "refills");
   const instructions = text(formData, "instructions");
+  const drugCatalogId = text(formData, "drugCatalogId");
 
   if (!patientId || !chiefComplaint) {
     throw new Error("Patient and chief complaint are required.");
+  }
+  if (!["NORMAL", "SENSITIVE", "RESTRICTED"].includes(sensitivity || "NORMAL")) {
+    throw new Error("A valid encounter sensitivity category is required.");
   }
 
   await requirePractitionerPatientAccess(patientId);
@@ -101,6 +110,63 @@ export async function createEncounter(formData: FormData) {
     }
   }
 
+  let interactionWarnings: Prisma.JsonArray = [];
+  if (hasPrescription && drugCatalogId) {
+    const catalogDrug = await prisma.drugCatalog.findFirst({
+      where: { id: drugCatalogId, practiceId: session.practiceId, isActive: true },
+    });
+    if (!catalogDrug) throw new Error("The selected catalog medication is not available.");
+
+    const activeAllergies = await prisma.patientAllergy.findMany({
+      where: { patientId, status: "ACTIVE" },
+      select: { substance: true, reaction: true, severity: true },
+    });
+    const allergyText = [
+      catalogDrug.name,
+      catalogDrug.genericName,
+      catalogDrug.activeIngredients,
+    ].filter((value): value is string => Boolean(value)).join(" ").toLowerCase();
+    const allergyMatches = activeAllergies.filter((allergy) =>
+      allergyText.includes(allergy.substance.toLowerCase()),
+    );
+    if (allergyMatches.length) {
+      throw new Error(
+        `Potential allergy conflict: ${allergyMatches.map((item) => item.substance).join(", ")}.`,
+      );
+    }
+
+    const activeMedicationIds = await prisma.medicationStatement.findMany({
+      where: { patientId, status: "ACTIVE", prescriptionId: { not: null } },
+      select: { prescription: { select: { drugCatalogId: true } } },
+    });
+    const otherDrugIds = activeMedicationIds
+      .map((item) => item.prescription?.drugCatalogId)
+      .filter((id): id is string => Boolean(id));
+    const interactions = await prisma.drugInteraction.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { drugAId: drugCatalogId, drugBId: { in: otherDrugIds } },
+          { drugBId: drugCatalogId, drugAId: { in: otherDrugIds } },
+        ],
+      },
+      include: { drugA: { select: { name: true } }, drugB: { select: { name: true } } },
+    });
+    interactionWarnings = interactions.map((interaction) => ({
+      severity: interaction.severity,
+      description: interaction.description,
+      drugs: [interaction.drugA.name, interaction.drugB.name],
+    })) as Prisma.JsonArray;
+    const contraindication = interactions.find(
+      (interaction) => interaction.severity === "CONTRAINDICATED" || interaction.severity === "SEVERE",
+    );
+    if (contraindication) {
+      throw new Error(
+        `Safety warning (${contraindication.severity}): ${contraindication.description}`,
+      );
+    }
+  }
+
   let observationType: ObservationType | undefined;
   if (hasObservation) {
     if (!Object.values(ObservationType).includes(observationTypeValue as ObservationType)) {
@@ -116,6 +182,11 @@ export async function createEncounter(formData: FormData) {
         patientId: patient.id,
         practitionerId: practitioner.id,
         chiefComplaint,
+        subjective: subjective || null,
+        objective: objective || null,
+        assessment: assessment || null,
+        plan: plan || null,
+        sensitivity: EncounterSensitivity[sensitivity as keyof typeof EncounterSensitivity] ?? EncounterSensitivity.NORMAL,
         diagnosis: diagnosis || null,
         notes: notes || null,
       },
@@ -149,6 +220,8 @@ export async function createEncounter(formData: FormData) {
           quantity,
           refills,
           instructions: instructions || null,
+          drugCatalogId: drugCatalogId || null,
+          interactionWarnings,
         },
       });
       await tx.auditLog.create({
@@ -181,7 +254,19 @@ export async function completeEncounter(formData: FormData) {
       practiceId: session.practiceId,
       ...(session.role === "PRACTITIONER" ? { practitionerId: session.userId } : {}),
     },
-    select: { id: true, patientId: true, status: true, chiefComplaint: true, diagnosis: true, notes: true },
+    select: {
+      id: true,
+      patientId: true,
+      status: true,
+      chiefComplaint: true,
+      subjective: true,
+      objective: true,
+      assessment: true,
+      plan: true,
+      diagnosis: true,
+      notes: true,
+      sensitivity: true,
+    },
   });
   if (!encounter) throw new Error("Encounter not found in this practice.");
   if (encounter.status !== "IN_PROGRESS") {
@@ -193,8 +278,13 @@ export async function completeEncounter(formData: FormData) {
     .update(JSON.stringify({
       id: encounter.id,
       chiefComplaint: encounter.chiefComplaint,
+      subjective: encounter.subjective,
+      objective: encounter.objective,
+      assessment: encounter.assessment,
+      plan: encounter.plan,
       diagnosis: encounter.diagnosis,
       notes: encounter.notes,
+      sensitivity: encounter.sensitivity,
     }))
     .digest("hex");
 
@@ -220,4 +310,52 @@ export async function completeEncounter(formData: FormData) {
 
   revalidatePath("/clinical");
   revalidatePath(`/patients/${encounter.patientId}`);
+}
+
+export async function addEncounterAddendum(formData: FormData) {
+  const session = await requirePermission("encounter:update");
+  const encounterId = text(formData, "encounterId");
+  const addendumText = text(formData, "addendum");
+  const sensitivity = text(formData, "sensitivity") || "NORMAL";
+  if (!encounterId || !addendumText) throw new Error("Encounter and addendum text are required.");
+  if (!["NORMAL", "SENSITIVE", "RESTRICTED"].includes(sensitivity)) {
+    throw new Error("A valid addendum sensitivity category is required.");
+  }
+  if (addendumText.length > 5000) throw new Error("Addendum text is too long.");
+
+  const encounter = await prisma.encounter.findFirst({
+    where: {
+      id: encounterId,
+      practiceId: session.practiceId,
+      ...(session.role === "PRACTITIONER" ? { practitionerId: session.userId } : {}),
+    },
+    select: { id: true, patientId: true },
+  });
+  if (!encounter) throw new Error("Encounter not found in this practice.");
+  await requirePractitionerPatientAccess(encounter.patientId);
+
+  await prisma.$transaction(async (tx) => {
+    const addendum = await tx.encounterAddendum.create({
+      data: {
+        encounterId: encounter.id,
+        authorId: session.userId,
+        text: addendumText,
+        sensitivity: sensitivity as "NORMAL" | "SENSITIVE" | "RESTRICTED",
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        practiceId: session.practiceId,
+        actorId: session.userId,
+        actorType: "STAFF",
+        action: "CREATE",
+        resourceType: "ENCOUNTER_ADDENDUM",
+        resourceId: addendum.id,
+        metadata: { encounterId: encounter.id, patientId: encounter.patientId, sensitivity },
+      },
+    });
+  });
+
+  revalidatePath(`/patients/${encounter.patientId}`);
+  revalidatePath("/clinical");
 }

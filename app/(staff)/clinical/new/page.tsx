@@ -37,6 +37,10 @@ export default async function NewEncounterPage({
   )
     ? requestedPatientId
     : "";
+  const drugCatalog = await prisma.drugCatalog.findMany({
+    where: { practiceId: session.practiceId, isActive: true },
+    orderBy: [{ name: "asc" }, { strength: "asc" }],
+  });
 
   const inputClass =
     "min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-[#397f99] focus:ring-2 focus:ring-[#397f99]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
@@ -82,6 +86,14 @@ export default async function NewEncounterPage({
               Chief complaint
               <textarea required name="chiefComplaint" rows={3} className={inputClass} placeholder="Reason for the visit" />
             </label>
+            <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Record sensitivity
+              <select name="sensitivity" defaultValue="NORMAL" className={inputClass}>
+                <option value="NORMAL">Normal</option>
+                <option value="SENSITIVE">Sensitive</option>
+                <option value="RESTRICTED">Restricted</option>
+              </select>
+            </label>
           </fieldset>
 
           <fieldset className="grid gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800 sm:grid-cols-2">
@@ -108,8 +120,24 @@ export default async function NewEncounterPage({
             </label>
           </fieldset>
 
-          <fieldset className="space-y-4">
-            <legend className="text-sm font-bold text-slate-900 dark:text-white">Assessment and plan</legend>
+          <fieldset className="grid gap-4 sm:grid-cols-2">
+            <legend className="text-sm font-bold text-slate-900 dark:text-white">SOAP assessment</legend>
+            <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Subjective
+              <textarea name="subjective" rows={4} className={inputClass} placeholder="Patient-reported symptoms and history" />
+            </label>
+            <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Objective
+              <textarea name="objective" rows={4} className={inputClass} placeholder="Exam findings and observed data" />
+            </label>
+            <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Assessment
+              <textarea name="assessment" rows={4} className={inputClass} placeholder="Clinical impression" />
+            </label>
+            <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Plan
+              <textarea name="plan" rows={4} className={inputClass} placeholder="Treatment and follow-up plan" />
+            </label>
             <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               Diagnosis
               <input name="diagnosis" className={inputClass} placeholder="Primary diagnosis or clinical impression" />
@@ -123,8 +151,19 @@ export default async function NewEncounterPage({
           <fieldset className="grid gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800 sm:grid-cols-2">
             <legend className="px-1 text-sm font-bold text-slate-900 dark:text-white">Electronic prescription record</legend>
             <p className="text-xs leading-5 text-slate-500 sm:col-span-2">
-              Medication details are free text. Review the selected patient and chart before saving. This app does not check allergies or interactions, sign prescriptions, or send them to a pharmacy.
+              Catalog selection enables allergy and interaction checks. Severe or contraindicated interactions and matching active allergies block saving.
             </p>
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200 sm:col-span-2">
+              Drug catalog
+              <select name="drugCatalogId" className={inputClass} defaultValue="">
+                <option value="">Free-text medication (catalog check unavailable)</option>
+                {drugCatalog.map((drug) => (
+                  <option key={drug.id} value={drug.id}>
+                    {drug.name}{drug.genericName ? ` (${drug.genericName})` : ""}{drug.strength ? ` · ${drug.strength}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               Medication
               <input name="medication" maxLength={250} className={inputClass} placeholder="Medication name and strength" />

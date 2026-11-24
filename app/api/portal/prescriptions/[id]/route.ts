@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getSessionContext } from "@/lib/auth/session";
 import { logSensitiveRecordAccess } from "@/lib/audit";
 import { createTextPdf } from "@/lib/pdf/text-pdf";
@@ -28,6 +29,9 @@ export async function GET(
       quantity: true,
       refills: true,
       instructions: true,
+      signedAt: true,
+      signedHash: true,
+      pdfHash: true,
       status: true,
       createdAt: true,
       patient: { select: { firstName: true, lastName: true } },
@@ -45,7 +49,7 @@ export async function GET(
 
   const pdf = createTextPdf([
     prescription.encounter.practice.name,
-    "PRESCRIPTION RECORD",
+    prescription.signedAt ? "SIGNED PRESCRIPTION" : "PRESCRIPTION RECORD",
     "",
     `Patient: ${prescription.patient.firstName} ${prescription.patient.lastName}`,
     `Medication: ${prescription.medication}`,
@@ -59,9 +63,20 @@ export async function GET(
     `Status: ${prescription.status}`,
     `Prescribed by: ${prescription.practitioner.firstName} ${prescription.practitioner.lastName}`,
     `Date: ${prescription.createdAt.toLocaleDateString("en-ZA")}`,
+    prescription.signedAt ? `Signed at: ${prescription.signedAt.toISOString()}` : "Not signed",
+    prescription.signedHash ? `Signature hash: ${prescription.signedHash}` : "Signature: absent",
     "",
-    "Electronic record only. This document is not signed and was not sent to a pharmacy.",
+    prescription.signedAt
+      ? "Digitally recorded signature hash. Verify through the practice before dispensing."
+      : "Electronic record only. This document is not signed and was not sent to a pharmacy.",
   ]);
+  if (prescription.signedAt) {
+    const pdfHash = createHash("sha256").update(pdf).digest("hex");
+    await prisma.prescription.update({
+      where: { id: prescription.id },
+      data: { pdfHash },
+    });
+  }
 
   return new Response(new Uint8Array(pdf), {
     headers: {
