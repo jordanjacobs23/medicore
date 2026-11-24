@@ -4,6 +4,8 @@ import { requirePermission } from "@/lib/authorization/require-permission";
 import { logSensitiveRecordAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { createEncounter } from "../actions";
+import { AiScribePanel } from "@/components/ai-scribe-panel";
+import { PatientSearchSelect } from "@/components/patient-search-select";
 
 export default async function NewEncounterPage({
   searchParams,
@@ -70,22 +72,21 @@ export default async function NewEncounterPage({
             <legend className="text-sm font-bold text-slate-900 dark:text-white">Encounter</legend>
             <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               Patient
-              <select required name="patientId" defaultValue={selectedPatientId} className={inputClass}>
-                <option value="" disabled>Select a patient</option>
-                {patients.map((patient) => (
-                  <option key={patient.id} value={patient.id}>
-                    {patient.firstName} {patient.lastName}
-                    {patient.dateOfBirth
-                      ? ` · DOB ${patient.dateOfBirth.toISOString().slice(0, 10)}`
-                      : " · DOB not recorded"}
-                  </option>
-                ))}
-              </select>
+              <PatientSearchSelect
+                patients={patients.map((patient) => ({
+                  ...patient,
+                  dateOfBirth: patient.dateOfBirth?.toISOString().slice(0, 10) ?? null,
+                }))}
+                defaultPatientId={selectedPatientId}
+                required
+                inputClass={inputClass}
+              />
             </label>
             <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               Chief complaint
               <textarea required name="chiefComplaint" rows={3} className={inputClass} placeholder="Reason for the visit" />
             </label>
+            <AiScribePanel patientId={selectedPatientId} />
             <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               Record sensitivity
               <select name="sensitivity" defaultValue="NORMAL" className={inputClass}>

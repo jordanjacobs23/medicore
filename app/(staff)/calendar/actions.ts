@@ -15,6 +15,8 @@ export async function createAppointment(formData: FormData) {
   const date = String(formData.get("date") ?? "");
   const time = String(formData.get("time") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
+  const kindValue = String(formData.get("kind") ?? "IN_PERSON");
+  const kind = kindValue === "TELEHEALTH" ? "TELEHEALTH" : "IN_PERSON";
 
   if (!patientId || !practitionerId || !date || !time) {
     throw new Error("Patient, practitioner, date, and available time are required.");
@@ -38,6 +40,7 @@ export async function createAppointment(formData: FormData) {
     dateKey: date,
     time,
     reason: reason || null,
+    kind,
   });
 
   revalidatePath("/calendar");

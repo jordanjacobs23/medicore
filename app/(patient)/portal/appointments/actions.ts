@@ -18,6 +18,8 @@ export async function bookPatientAppointment(formData: FormData) {
   const date = String(formData.get("date") ?? "");
   const time = String(formData.get("time") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
+  const kindValue = String(formData.get("kind") ?? "IN_PERSON");
+  const kind = kindValue === "TELEHEALTH" ? "TELEHEALTH" : "IN_PERSON";
 
   if (!date || !time) {
     throw new Error("Choose an available appointment time.");
@@ -40,6 +42,7 @@ export async function bookPatientAppointment(formData: FormData) {
     time,
     reason: reason || null,
     smsRemindersEnabled,
+    kind,
   });
 
   revalidatePath("/portal");

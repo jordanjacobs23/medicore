@@ -112,6 +112,9 @@ export default async function PatientAppointmentsPage({
                     <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[appointment.status]}`}>
                       {appointment.status.replace("_", " ")}
                     </span>
+                    {appointment.kind === "TELEHEALTH" && (
+                      <Link href={`/telehealth/${appointment.id}`} className="rounded-lg bg-[#397f99] px-3 py-2 text-xs font-bold text-white">Join consultation</Link>
+                    )}
                     {appointment.status === "BOOKED" && (
                       <div className="flex flex-col items-end gap-2">
                         <Link href={`/portal/appointments/${appointment.id}/reschedule`} className="text-sm font-semibold text-[#397f99] hover:text-[#2f718a]">Reschedule</Link>

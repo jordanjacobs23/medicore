@@ -100,6 +100,12 @@ export default async function NewAppointmentPage({
                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Reason for visit
                   <textarea name="reason" rows={3} maxLength={500} placeholder="Optional appointment note" className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal dark:border-slate-700 dark:bg-slate-950" />
                 </label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Visit type
+                  <select name="kind" defaultValue="IN_PERSON" className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-normal dark:border-slate-700 dark:bg-slate-950">
+                    <option value="IN_PERSON">In person</option>
+                    <option value="TELEHEALTH">Telehealth</option>
+                  </select>
+                </label>
                 <div className="flex justify-end border-t border-slate-200 pt-5 dark:border-slate-800"><button type="submit" className="inline-flex h-10 items-center rounded-lg bg-[#397f99] px-4 text-sm font-semibold text-white hover:bg-[#2f718a]">Schedule appointment</button></div>
               </form>
             ))}

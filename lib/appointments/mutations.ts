@@ -22,6 +22,7 @@ export async function createAppointmentInSlot({
   time,
   reason,
   smsRemindersEnabled,
+  kind,
 }: {
   practiceId: string;
   patientId: string;
@@ -30,6 +31,7 @@ export async function createAppointmentInSlot({
   time: string;
   reason: string | null;
   smsRemindersEnabled?: boolean;
+  kind?: "IN_PERSON" | "TELEHEALTH";
 }) {
   try {
     return await prisma.$transaction(async (tx) => {
@@ -87,6 +89,7 @@ export async function createAppointmentInSlot({
           durationMinutes: slot.durationMinutes,
           reason,
           status: AppointmentStatus.BOOKED,
+          kind: kind ?? "IN_PERSON",
         },
         select: { id: true },
       });

@@ -105,6 +105,13 @@ export default async function BookPatientAppointmentPage({
                     Reason for visit
                     <textarea required name="reason" rows={3} maxLength={500} placeholder="Tell the practice briefly what you would like help with" className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal outline-none focus:border-[#397f99] dark:border-slate-700 dark:bg-slate-950" />
                   </label>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Visit type
+                    <select name="kind" defaultValue="IN_PERSON" className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-normal dark:border-slate-700 dark:bg-slate-950">
+                      <option value="IN_PERSON">In person</option>
+                      <option value="TELEHEALTH">Telehealth</option>
+                    </select>
+                  </label>
                   {patient.phone?.trim() ? (
                     <label className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
                       <input type="hidden" name="smsOptInPreference" value="submitted" />

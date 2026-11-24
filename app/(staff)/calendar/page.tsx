@@ -131,6 +131,9 @@ export default async function CalendarPage({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[appointment.status]}`}>{appointment.status.replace("_", " ")}</span>
+                  {appointment.kind === "TELEHEALTH" && (
+                    <Link href={`/telehealth/${appointment.id}`} className="rounded-lg bg-[#397f99] px-3 py-2 text-xs font-bold text-white">Join telehealth</Link>
+                  )}
                   {canManageAppointments && appointment.status === "BOOKED" && appointment.scheduledAt > new Date() && <Link href={`/calendar/${appointment.id}/reschedule`} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">Reschedule</Link>}
                   {canManageAppointments && !(["COMPLETED", "CANCELLED", "NO_SHOW"] as string[]).includes(appointment.status) && (
                     <form action={updateAppointmentStatus} className="flex items-center">

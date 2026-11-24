@@ -1,4 +1,5 @@
 import type { PatientConsentPurpose } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export const PATIENT_PURPOSE_CONSENT_VERSION = "2026-11-22";
 
@@ -14,3 +15,14 @@ export const PATIENT_PURPOSE_CONSENT_TEXT = {
   THIRD_PARTY_SHARE:
     "I agree to sharing relevant information with third parties involved in my care, such as a referred provider or diagnostic service.",
 } satisfies Record<PatientConsentPurpose, string>;
+
+export async function getLatestPurposeConsent(
+  patientId: string,
+  practiceId: string,
+  purpose: PatientConsentPurpose,
+) {
+  return prisma.patientPurposeConsent.findFirst({
+    where: { patientId, practiceId, purpose, scopeVersion: PATIENT_PURPOSE_CONSENT_VERSION },
+    orderBy: { sequence: "desc" },
+  });
+}

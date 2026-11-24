@@ -29,6 +29,9 @@ model Practice {
   breakGlassRequests        BreakGlassRequest[]
   drugCatalog               DrugCatalog[]
   pharmacies                Pharmacy[]
+  telehealthSessions        TelehealthSession[]
+  scribeSessions            ScribeSession[]
+  codingSuggestions         CodingSuggestion[]
 }
 
 model Staff {
@@ -62,6 +65,9 @@ model Staff {
   breakGlassRequests         BreakGlassRequest[]    @relation("BreakGlassRequester")
   reviewedBreakGlassRequests BreakGlassRequest[]    @relation("BreakGlassReviewer")
   encounterAddenda           EncounterAddendum[]
+  telehealthSessions         TelehealthSession[]
+  scribeSessions             ScribeSession[]
+  codingSuggestions          CodingSuggestion[]
 }
 
 model Patient {
@@ -113,6 +119,9 @@ model Patient {
   purposeConsents              PatientPurposeConsent[]
   correctionRequests           PatientCorrectionRequest[]
   breakGlassRequests           BreakGlassRequest[]
+  telehealthSessions           TelehealthSession[]
+  scribeSessions               ScribeSession[]
+  codingSuggestions            CodingSuggestion[]
 }
 
 model Appointment {
@@ -123,13 +132,15 @@ model Appointment {
   scheduledAt     DateTime
   durationMinutes Int               @default(30)
   status          AppointmentStatus @default(BOOKED)
+  kind            AppointmentKind   @default(IN_PERSON)
   reason          String?
   createdAt       DateTime          @default(now())
 
-  practice     Practice              @relation(fields: [practiceId], references: [id])
-  patient      Patient               @relation(fields: [patientId], references: [id])
-  practitioner Staff?                @relation(fields: [practitionerId], references: [id])
-  reminders    AppointmentReminder[]
+  practice          Practice              @relation(fields: [practiceId], references: [id])
+  patient           Patient               @relation(fields: [patientId], references: [id])
+  practitioner      Staff?                @relation(fields: [practitionerId], references: [id])
+  reminders         AppointmentReminder[]
+  telehealthSession TelehealthSession?
 
   @@index([practiceId, scheduledAt])
   @@index([practitionerId, scheduledAt])
@@ -175,13 +186,13 @@ model AppointmentReminder {
 }
 
 model Encounter {
-  id             String          @id @default(cuid())
+  id             String               @id @default(cuid())
   practiceId     String
   patientId      String
   practitionerId String
-  startedAt      DateTime        @default(now())
+  startedAt      DateTime             @default(now())
   endedAt        DateTime?
-  status         EncounterStatus @default(IN_PROGRESS)
+  status         EncounterStatus      @default(IN_PROGRESS)
   chiefComplaint String?
   diagnosis      String?
   notes          String?
@@ -208,15 +219,16 @@ model Encounter {
   invoices             Invoice[]
   claims               Claim[]
   addenda              EncounterAddendum[]
+  scribeSessions       ScribeSession[]
 }
 
 model EncounterAddendum {
-  id             String              @id @default(cuid())
-  encounterId    String
-  authorId       String
-  text           String
-  sensitivity    EncounterSensitivity @default(NORMAL)
-  createdAt      DateTime            @default(now())
+  id          String               @id @default(cuid())
+  encounterId String
+  authorId    String
+  text        String
+  sensitivity EncounterSensitivity @default(NORMAL)
+  createdAt   DateTime             @default(now())
 
   encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
   author    Staff     @relation(fields: [authorId], references: [id])
@@ -225,29 +237,29 @@ model EncounterAddendum {
 }
 
 model Prescription {
-  id             String             @id @default(cuid())
-  encounterId    String
-  patientId      String
-  practitionerId String
-  medication     String
-  dosage         String
-  route          String?
-  frequency      String?
-  duration       String?
-  quantity       String?
-  refills        Int                @default(0)
-  instructions   String?
-  drugCatalogId  String?
-  signedAt       DateTime?
-  signedHash     String?
-  pdfHash        String?
-  pharmacyId     String?
-  pharmacyStatus PharmacyHandoffStatus @default(NOT_SENT)
-  sentAt         DateTime?
-  pharmacyReference String?
-  interactionWarnings Json @default("[]")
-  status         PrescriptionStatus @default(ACTIVE)
-  createdAt      DateTime           @default(now())
+  id                  String                @id @default(cuid())
+  encounterId         String
+  patientId           String
+  practitionerId      String
+  medication          String
+  dosage              String
+  route               String?
+  frequency           String?
+  duration            String?
+  quantity            String?
+  refills             Int                   @default(0)
+  instructions        String?
+  drugCatalogId       String?
+  signedAt            DateTime?
+  signedHash          String?
+  pdfHash             String?
+  pharmacyId          String?
+  pharmacyStatus      PharmacyHandoffStatus @default(NOT_SENT)
+  sentAt              DateTime?
+  pharmacyReference   String?
+  interactionWarnings Json                  @default("[]")
+  status              PrescriptionStatus    @default(ACTIVE)
+  createdAt           DateTime              @default(now())
 
   encounter            Encounter             @relation(fields: [encounterId], references: [id])
   patient              Patient               @relation(fields: [patientId], references: [id])
@@ -258,21 +270,21 @@ model Prescription {
 }
 
 model DrugCatalog {
-  id             String   @id @default(cuid())
-  practiceId     String
-  name           String
-  genericName    String?
-  strength       String?
-  form           String?
-  route          String?
+  id                String   @id @default(cuid())
+  practiceId        String
+  name              String
+  genericName       String?
+  strength          String?
+  form              String?
+  route             String?
   activeIngredients String?
-  externalCode   String?
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  externalCode      String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
-  prescriptions Prescription[]
+  practice        Practice          @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  prescriptions   Prescription[]
   interactionsAsA DrugInteraction[] @relation("DrugInteractionA")
   interactionsAsB DrugInteraction[] @relation("DrugInteractionB")
 
@@ -281,14 +293,14 @@ model DrugCatalog {
 }
 
 model DrugInteraction {
-  id             String                 @id @default(cuid())
-  drugAId        String
-  drugBId        String
-  severity       InteractionSeverity
-  description    String
-  source         String?
-  isActive       Boolean                @default(true)
-  createdAt      DateTime               @default(now())
+  id          String              @id @default(cuid())
+  drugAId     String
+  drugBId     String
+  severity    InteractionSeverity
+  description String
+  source      String?
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
 
   drugA DrugCatalog @relation("DrugInteractionA", fields: [drugAId], references: [id], onDelete: Cascade)
   drugB DrugCatalog @relation("DrugInteractionB", fields: [drugBId], references: [id], onDelete: Cascade)
@@ -299,18 +311,18 @@ model DrugInteraction {
 }
 
 model Pharmacy {
-  id           String   @id @default(cuid())
-  practiceId   String
-  name         String
-  phone        String?
-  email        String?
-  address      String?
-  externalId   String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id         String   @id @default(cuid())
+  practiceId String
+  name       String
+  phone      String?
+  email      String?
+  address    String?
+  externalId String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  practice      Practice       @relation(fields: [practiceId], references: [id], onDelete: Cascade)
   prescriptions Prescription[]
 
   @@index([practiceId, isActive, name])
@@ -831,6 +843,34 @@ enum PatientConsentPurpose {
   THIRD_PARTY_SHARE
 }
 
+enum AppointmentKind {
+  IN_PERSON
+  TELEHEALTH
+}
+
+enum TelehealthStatus {
+  WAITING
+  IN_PROGRESS
+  ENDED
+  CANCELLED
+}
+
+enum RecordingStatus {
+  NOT_REQUESTED
+  CONSENT_PENDING
+  RECORDING
+  STOPPED
+  FAILED
+}
+
+enum ScribeStatus {
+  DRAFT
+  GENERATED
+  REVIEWED
+  APPLIED
+  CANCELLED
+}
+
 enum PatientSexAtBirth {
   FEMALE
   MALE
@@ -918,21 +958,110 @@ model PatientConsent {
 }
 
 model PatientPurposeConsent {
-  id            String                @id @default(cuid())
-  practiceId    String
-  patientId     String
-  purpose       PatientConsentPurpose
-  granted       Boolean
-  scopeText     String                @db.Text
-  scopeVersion  String
-  actorType     AuditActorType
-  sequence      Int                   @unique @default(autoincrement())
-  recordedAt    DateTime              @default(now())
+  id           String                @id @default(cuid())
+  practiceId   String
+  patientId    String
+  purpose      PatientConsentPurpose
+  granted      Boolean
+  scopeText    String                @db.Text
+  scopeVersion String
+  actorType    AuditActorType
+  sequence     Int                   @unique @default(autoincrement())
+  recordedAt   DateTime              @default(now())
 
   practice Practice @relation(fields: [practiceId], references: [id], onDelete: Restrict)
   patient  Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([practiceId, patientId, purpose, recordedAt])
+}
+
+model TelehealthSession {
+  id                 String           @id @default(cuid())
+  practiceId         String
+  appointmentId      String           @unique
+  patientId          String
+  practitionerId     String
+  status             TelehealthStatus @default(WAITING)
+  patientConsentAt   DateTime?
+  recordingStatus    RecordingStatus  @default(NOT_REQUESTED)
+  recordingConsentAt DateTime?
+  recordingStartedAt DateTime?
+  recordingEndedAt   DateTime?
+  recordingUrl       String?
+  startedAt          DateTime         @default(now())
+  endedAt            DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  practice     Practice           @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  appointment  Appointment        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient      Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  practitioner Staff              @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  signals      TelehealthSignal[]
+
+  @@index([practiceId, status])
+}
+
+model TelehealthSignal {
+  id        String   @id @default(cuid())
+  sessionId String
+  senderId  String
+  targetId  String
+  kind      String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  session TelehealthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, targetId, createdAt])
+}
+
+model ScribeSession {
+  id              String       @id @default(cuid())
+  practiceId      String
+  patientId       String
+  practitionerId  String
+  encounterId     String?
+  status          ScribeStatus @default(DRAFT)
+  transcript      String       @db.Text
+  draftSubjective String?      @db.Text
+  draftObjective  String?      @db.Text
+  draftAssessment String?      @db.Text
+  draftPlan       String?      @db.Text
+  draftDiagnosis  String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  practice          Practice           @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  patient           Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  practitioner      Staff              @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  encounter         Encounter?         @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  codingSuggestions CodingSuggestion[]
+
+  @@index([practiceId, patientId, practitionerId, createdAt])
+}
+
+model CodingSuggestion {
+  id              String    @id @default(cuid())
+  practiceId      String
+  patientId       String
+  practitionerId  String
+  scribeSessionId String?
+  system          String
+  code            String
+  description     String
+  rationale       String?
+  confidence      Int       @default(0)
+  accepted        Boolean?
+  reviewedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  practice      Practice       @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  practitioner  Staff          @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  scribeSession ScribeSession? @relation(fields: [scribeSessionId], references: [id], onDelete: Cascade)
+
+  @@index([practiceId, patientId, scribeSessionId])
 }
 
 model PatientCorrectionRequest {
